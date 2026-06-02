@@ -1,8 +1,18 @@
+import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Stethoscope, ShieldCheck, ArrowRight } from 'lucide-react';
 import { useAuthContext } from "@asgardeo/auth-react";
 
 const DoctorLogin = () => {
-  const { signIn } = useAuthContext();
+  const navigate = useNavigate();
+  const { signIn, state } = useAuthContext();
+
+  // Redirect if they are already logged in
+  useEffect(() => {
+    if (state.isAuthenticated) {
+      navigate('/doctor');
+    }
+  }, [state.isAuthenticated, navigate]);
 
   return (
     <div className="container row justify-content-center align-items-center mx-auto" style={{ minHeight: '80vh' }}>
