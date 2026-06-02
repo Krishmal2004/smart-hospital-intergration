@@ -1,18 +1,8 @@
-import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { UserCircle, ShieldCheck, ArrowRight } from 'lucide-react';
 import { useAuthContext } from "@asgardeo/auth-react";
 
 const PatientLogin = () => {
-  const navigate = useNavigate();
-  const { signIn, state } = useAuthContext();
-
-  // Redirect if they are already logged in
-  useEffect(() => {
-    if (state.isAuthenticated) {
-      navigate('/patient');
-    }
-  }, [state.isAuthenticated, navigate]);
+  const { signIn } = useAuthContext();
 
   return (
     <div className="container row justify-content-center align-items-center mx-auto" style={{ minHeight: '80vh' }}>
@@ -32,8 +22,8 @@ const PatientLogin = () => {
             Your privacy is our priority. We use Asgardio enterprise security to protect your personal health information.
           </p>
 
-          <button 
-            onClick={() => signIn()} 
+          <button
+            onClick={() => signIn()}
             className="btn-primary-orange w-100 py-3 shadow-sm d-flex justify-content-center align-items-center gap-2"
           >
             Continue with Asgardio <ArrowRight size={18} />

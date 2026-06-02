@@ -1,13 +1,36 @@
-import { Link, Outlet, useLocation } from 'react-router-dom';
+import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Activity, Stethoscope, UserCircle, LogOut } from 'lucide-react';
 import { useAuthContext } from "@asgardeo/auth-react";
+import { useEffect } from 'react';
 
 const MainLayout = () => {
   const location = useLocation();
-  const { signOut, state } = useAuthContext();
+  const navigate = useNavigate();
+  const { state, signOut, getDecodedIDToken } = useAuthContext(); 
   
-  // Check if we are on a dashboard to show the logout button
   const onDash = (location.pathname === '/doctor' || location.pathname === '/patient');
+
+  useEffect(() => {
+    if (state.isAuthenticated) {
+      getDecodedIDToken().then((token) => {
+        // Read the freshly authorized data from Asgardeo
+        const userGroups = token.groups || [];
+        const accountType = token.account_type || token.accountType || ""; 
+
+        // Check if the user is a Doctor
+        const isDoctor = userGroups.includes("Doctors") || accountType.toLowerCase() === "doctor";
+
+        // Route instantly based on the data
+        if (location.pathname === '/' || location.pathname.includes('/login')) {
+          if (isDoctor) {
+            navigate('/doctor');
+          } else {
+            navigate('/patient');
+          }
+        }
+      }).catch(console.error);
+    }
+  }, [state.isAuthenticated, getDecodedIDToken, location.pathname, navigate]);
 
   return (
     <div style={{ backgroundColor: 'var(--bg-main)', minHeight: '100vh' }}>
@@ -35,7 +58,7 @@ const MainLayout = () => {
               ) : (
                 <>
                   <li className="nav-item">
-                    <Link to="/login/patient" className="text-decoration-none text-dark fw-medium d-flex align-items-center gap-2 px-2" style={{ transition: 'color 0.2s' }} onMouseOver={(e) => e.currentTarget.classList.add('text-orange')} onMouseOut={(e) => e.currentTarget.classList.remove('text-orange')}>
+                    <Link to="/login/patient" className="text-decoration-none text-dark fw-medium d-flex align-items-center gap-2 px-2">
                       <UserCircle size={18} /> Patient Login
                     </Link>
                   </li>
