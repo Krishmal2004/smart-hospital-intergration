@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
+import { useAuthContext } from '@asgardeo/auth-react';
 import {
   Calendar as CalendarIcon, ChevronRight, ChevronLeft, FileText, Pill, Receipt,
   CheckCircle, Activity, Heart, Clock, Shield, Bell, TrendingUp, Droplets,
   Thermometer, User, ArrowUpRight, Star, Zap, Phone, MessageSquare
 } from 'lucide-react';
 
-/* ───────── Animated Health Ring ───────── */
 const HealthRing = ({ value, max, label, icon: Icon, color, unit }) => {
   const [animatedValue, setAnimatedValue] = useState(0);
   const radius = 36;
@@ -60,7 +60,7 @@ const StatCard = ({ icon: Icon, label, value, trend, trendUp }) => (
   </div>
 );
 
-/* ───────── Calendar Widget (Enhanced) ───────── */
+/* ───────── Calendar Widget ───────── */
 const CalendarWidget = () => {
   const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
   const dates = [2, 3, 4, 5, 6];
@@ -70,7 +70,6 @@ const CalendarWidget = () => {
 
   return (
     <div className="theme-card p-4 border-0 h-100">
-      {/* Header */}
       <div className="d-flex align-items-center justify-content-between mb-4">
         <div className="d-flex align-items-center gap-3">
           <div className="orange-icon-bg p-2" style={{ borderRadius: '0.75rem', width: 44, height: 44 }}>
@@ -91,7 +90,6 @@ const CalendarWidget = () => {
         </div>
       </div>
 
-      {/* Day Selector */}
       <div className="d-flex gap-2 mb-4">
         {days.map((day, i) => (
           <button
@@ -111,7 +109,6 @@ const CalendarWidget = () => {
         ))}
       </div>
 
-      {/* Time Grid */}
       <div className="d-grid gap-2 mb-4" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
         {times.map((time, i) => {
           const isAvailable = (i + selectedDay) % 3 !== 0;
@@ -142,7 +139,6 @@ const CalendarWidget = () => {
         })}
       </div>
 
-      {/* CTA */}
       <button
         disabled={!selectedSlot}
         className="btn-primary-orange w-100 py-3 shadow-sm"
@@ -156,7 +152,7 @@ const CalendarWidget = () => {
   );
 };
 
-/* ───────── Document Vault (Enhanced) ───────── */
+/* ───────── Document Vault ───────── */
 const DocumentVault = () => {
   const docs = [
     { title: 'Blood Test Results', date: 'Oct 15, 2023', icon: FileText, color: '#f97316', bg: '#ffedd5', badge: 'New' },
@@ -215,6 +211,92 @@ const DocumentVault = () => {
             </div>
           );
         })}
+      </div>
+    </div>
+  );
+};
+
+/* ───────── Available Doctors (Dynamic) ───────── */
+const AvailableDoctors = () => {
+  const { getAccessToken } = useAuthContext();
+  const [doctors, setDoctors] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchDoctors = async () => {
+      try {
+        const token = await getAccessToken();
+        const response = await fetch('http://localhost:8080/api/doctors', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setDoctors(data);
+        } else {
+          console.error("Backend returned an error:", response.status);
+        }
+      } catch (error) {
+        console.error("Failed to fetch doctors:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDoctors();
+  }, [getAccessToken]);
+
+  return (
+    <div className="theme-card p-4 border-0 h-100">
+      <div className="d-flex align-items-center justify-content-between mb-4">
+        <div>
+          <h5 className="mb-0 fw-bold text-dark">Available Doctors</h5>
+          <small className="text-muted">Find the right specialist</small>
+        </div>
+        <button className="btn btn-sm btn-light rounded-pill px-3 fw-medium" style={{ fontSize: '0.8rem' }}>
+          Directory <ArrowUpRight size={14} />
+        </button>
+      </div>
+
+      <div className="d-flex flex-column gap-3" style={{ maxHeight: '280px', overflowY: 'auto' }}>
+        {loading ? (
+          <div className="text-center text-muted py-4">
+            <div className="spinner-border spinner-border-sm text-orange mb-2" role="status"></div>
+            <p className="small mb-0">Loading doctors...</p>
+          </div>
+        ) : doctors.length === 0 ? (
+          <div className="text-center text-muted py-4">
+            <p className="small mb-0">No doctors available.</p>
+          </div>
+        ) : (
+          doctors.map((doc, i) => (
+            <div
+              key={doc.id || i}
+              className="d-flex align-items-center gap-3 p-3 rounded-3 doc-item"
+              style={{
+                background: '#fafafa',
+                border: '1px solid transparent',
+                transition: 'all 0.25s ease',
+                cursor: 'pointer'
+              }}
+            >
+              <div
+                className="d-flex align-items-center justify-content-center rounded-3"
+                style={{ width: 48, height: 48, background: '#fff', fontSize: '1.4rem', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}
+              >
+                👨‍⚕️
+              </div>
+              <div className="flex-grow-1">
+                <p className="fw-bold mb-0 text-dark" style={{ fontSize: '0.88rem' }}>{doc.name}</p>
+                <small className="text-muted" style={{ fontSize: '0.72rem' }}>{doc.specialty || 'General Practitioner'}</small>
+              </div>
+              <ChevronRight size={16} className="text-muted" />
+            </div>
+          ))
+        )}
       </div>
     </div>
   );
@@ -280,7 +362,7 @@ const QuickActions = () => {
   ];
 
   return (
-    <div className="theme-card p-4 border-0">
+    <div className="theme-card p-4 border-0 h-100">
       <h5 className="mb-3 fw-bold text-dark">Quick Actions</h5>
       <div className="d-grid gap-2" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
         {actions.map((action, i) => {
@@ -313,7 +395,7 @@ const UpcomingAppointments = () => {
   ];
 
   return (
-    <div className="theme-card p-4 border-0">
+    <div className="theme-card p-4 border-0 h-100">
       <div className="d-flex align-items-center justify-content-between mb-4">
         <h5 className="mb-0 fw-bold text-dark">Upcoming Visits</h5>
         <button className="btn btn-sm btn-light rounded-pill px-3 fw-medium" style={{ fontSize: '0.8rem' }}>
@@ -485,7 +567,6 @@ const PatientPortal = () => {
             </div>
 
             <div className="d-flex align-items-center gap-3">
-              {/* Notification Bell */}
               <div className="position-relative">
                 <button className="btn btn-light rounded-circle d-flex align-items-center justify-content-center" style={{ width: 44, height: 44 }}>
                   <Bell size={20} className="text-muted" />
@@ -493,7 +574,6 @@ const PatientPortal = () => {
                 <div className="notification-dot"></div>
               </div>
 
-              {/* Next Visit Card */}
               <div className="theme-card px-4 py-3 d-flex align-items-center gap-3 border-0" style={{ background: '#fff' }}>
                 <Heart size={22} className="text-orange" fill="#f97316" />
                 <div>
@@ -556,18 +636,26 @@ const PatientPortal = () => {
           </div>
         </div>
 
-        {/* ── Bottom Row ── */}
-        <div className="row g-4">
-          <div className="col-lg-4">
-            <MedicationTracker />
+        {/* ── Widget Row 1 ── */}
+        <div className="row g-4 mb-4">
+          <div className="col-lg-6">
+            <AvailableDoctors />
           </div>
-          <div className="col-lg-4">
+          <div className="col-lg-6">
             <UpcomingAppointments />
           </div>
-          <div className="col-lg-4">
+        </div>
+
+        {/* ── Widget Row 2 ── */}
+        <div className="row g-4">
+          <div className="col-lg-6">
+            <MedicationTracker />
+          </div>
+          <div className="col-lg-6">
             <QuickActions />
           </div>
         </div>
+
       </div>
     </div>
   );
