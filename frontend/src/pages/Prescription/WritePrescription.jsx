@@ -74,15 +74,39 @@ const WritePrescription = ({ onBack }) => {
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Prescription Saved:", { patient: selectedPatient, prescription: prescriptionData });
-    alert("Prescription saved successfully!");
     
-    setSelectedPatient(null);
-    setSearchTerm('');
-    setSearchResults(patientDB); // Reset list to show all patients after saving
-    setPrescriptionData({ ...prescriptionData, diagnosis: '', medication: '', instructions: '', notes: '' });
+    try {
+      const token = await getAccessToken();
+
+      const response = await fetch('http://localhost:8080/api/prescriptions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          patient: selectedPatient,
+          prescription: prescriptionData
+        })
+      });
+
+      if (response.ok) {
+        alert("Prescription saved successfully to Database!");
+        setSelectedPatient(null);
+        setSearchTerm('');
+        setSearchResults(patientDB); 
+        setPrescriptionData({ 
+            date: new Date().toISOString().split('T')[0], 
+            diagnosis: '', medication: '', instructions: '', notes: '' 
+        });
+      } else {
+        alert("Failed to save prescription.");
+      }
+    } catch (error) {
+      console.error("Error submitting prescription:", error);
+    }
   };
 
   return (

@@ -1,5 +1,7 @@
 import ballerina/http;
 import ballerina/url;
+import patient_service.controllers;
+import patient_service.models;
 
 type Doctor record {|
     string id;
@@ -34,7 +36,7 @@ final http:Client asgardeoClient = check new (asgardeoOrgUrl, {
 }
 service /api on new http:Listener(8080) {
 
-    // Existing Doctors Endpoint
+    //Doctors Endpoint
     isolated resource function get doctors() returns Doctor[]|error {
         string filterQuery = check url:encode("groups eq Doctors", "UTF-8");
         string scimPath = "/scim2/Users?filter=" + filterQuery;
@@ -59,7 +61,7 @@ service /api on new http:Listener(8080) {
         return doctors;
     }
 
-    // New Patients Endpoint
+    //Patients Endpoint
     isolated resource function get patients() returns Patient[]|error {
         string scimPath = "/scim2/Users";
         json scimResponse = check asgardeoClient->get(scimPath);
@@ -106,5 +108,18 @@ service /api on new http:Listener(8080) {
             }
         }
         return patients;
+    }
+
+    //Prescription endpoint
+    isolated resource function post prescriptions(models:PrescriptionPayload payload) returns json|http:InternalServerError {
+        json|error result = controllers:savePrescriptionToDB(payload);
+        
+        if result is error {
+            return <http:InternalServerError>{
+                body: { "error": "Failed to save prescription", "details": result.message() }
+            };
+        }
+        
+        return result;
     }
 }
