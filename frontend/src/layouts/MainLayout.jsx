@@ -13,14 +13,11 @@ const MainLayout = () => {
   useEffect(() => {
     if (state.isAuthenticated) {
       getDecodedIDToken().then((token) => {
-        // Read the freshly authorized data from Asgardeo
         const userGroups = token.groups || [];
         const accountType = token.account_type || token.accountType || ""; 
 
-        // Check if the user is a Doctor
         const isDoctor = userGroups.includes("Doctors") || accountType.toLowerCase() === "doctor";
 
-        // Route instantly based on the data
         if (location.pathname === '/' || location.pathname.includes('/login')) {
           if (isDoctor) {
             navigate('/doctor');

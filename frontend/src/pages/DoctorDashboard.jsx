@@ -1,16 +1,23 @@
 import { useState, useEffect } from 'react';
 import { useAuthContext } from "@asgardeo/auth-react";
-import { Clock, User, FileText, Activity, TrendingUp } from 'lucide-react';
+import { Clock, User, FileText, Activity, TrendingUp, Pill } from 'lucide-react';
+
+import WritePrescription from './Prescription/WritePrescription';
 
 const mockAppointments = [
-  { id: 1, time: '09:00 AM', patient: 'Sarah Jenkins', type: 'Follow-up', status: 'completed' },
-  { id: 2, time: '10:30 AM', patient: 'Michael Chen', type: 'Consultation', status: 'active' },
-  { id: 3, time: '01:00 PM', patient: 'Emma Davis', type: 'Lab Review', status: 'upcoming' },
-  { id: 4, time: '03:15 PM', patient: 'James Wilson', type: 'Routine Check', status: 'upcoming' },
+  { id: 1, time: '09:00 AM', patient: 'Sarah Jenkins', type: 'Follow-up', status: 'completed', history: 'Patient has a history of mild hypertension, managed with lifestyle changes. Last comprehensive metabolic panel was 3 months ago with normal results.' },
+  { id: 2, time: '10:30 AM', patient: 'Michael Chen', type: 'Consultation', status: 'active', history: 'No known allergies. First-time visit complaining of acute joint pain.' },
+  { id: 3, time: '01:00 PM', patient: 'Emma Davis', type: 'Lab Review', status: 'upcoming', history: 'Awaiting Lipid panel results from previous visit. Currently on Atorvastatin 20mg.' },
+  { id: 4, time: '03:15 PM', patient: 'James Wilson', type: 'Routine Check', status: 'upcoming', history: 'Diabetic (Type 2). Managed with Metformin 500mg. Regular checkup.' },
 ];
 
-const PatientModal = ({ isOpen, onClose, patientName }) => {
-  if (!isOpen) return null;
+const mockPreviousPatients = [
+  { id: 5, time: 'Yesterday', patient: 'Alicia Keys', type: 'Consultation', status: 'completed', history: 'Complained of chronic migraines. Ordered MRI and prescribed acute pain relief.' },
+  { id: 6, time: 'Nov 02', patient: 'Robert Pattinson', type: 'Lab Review', status: 'completed', history: 'Reviewed blood work. Vitamin D deficiency noted. Prescribed supplements.' },
+];
+
+const PatientModal = ({ isOpen, onClose, patient, onWritePrescription }) => {
+  if (!isOpen || !patient) return null;
 
   return (
     <div className="modal fade show d-block" style={{ backgroundColor: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(4px)' }} tabIndex="-1">
@@ -25,8 +32,8 @@ const PatientModal = ({ isOpen, onClose, patientName }) => {
                 <User size={48} />
               </div>
               <div>
-                <h2 className="fw-bold mb-1 text-dark">{patientName}</h2>
-                <p className="text-muted mb-0 fw-medium">ID: #PT-84729</p>
+                <h2 className="fw-bold mb-1 text-dark">{patient.patient}</h2>
+                <p className="text-muted mb-0 fw-medium">ID: #PT-84729 &bull; {patient.type}</p>
               </div>
             </div>
 
@@ -54,11 +61,27 @@ const PatientModal = ({ isOpen, onClose, patientName }) => {
               </div>
             </div>
             
-            <div className="p-4 rounded-4" style={{ backgroundColor: 'var(--orange-light)', borderLeft: '4px solid var(--primary-orange)' }}>
+            <div className="p-4 rounded-4 mb-4" style={{ backgroundColor: 'var(--orange-light)', borderLeft: '4px solid var(--primary-orange)' }}>
               <h6 className="fw-bold text-dark mb-2">Medical History Summary</h6>
               <p className="text-muted mb-0 small lh-lg">
-                Patient has a history of mild hypertension, currently managed with lifestyle changes. No known allergies. Last comprehensive metabolic panel was 3 months ago with normal results. Complains of occasional migraines.
+                {patient.history}
               </p>
+            </div>
+
+            <div className="d-flex gap-3 pt-2">
+              <button 
+                className="btn-outline-gray flex-fill py-3 justify-content-center shadow-sm bg-white border-0" 
+                style={{ fontWeight: 'bold' }}
+                onClick={() => {
+                  onClose();
+                  onWritePrescription();
+                }}
+              >
+                <Pill size={18} className="text-orange me-2" /> Write Prescription
+              </button>
+              <button className="btn-outline-gray flex-fill py-3 justify-content-center shadow-sm bg-white border-0" style={{ fontWeight: 'bold' }}>
+                <Activity size={18} className="text-orange me-2" /> Order Labs
+              </button>
             </div>
           </div>
         </div>
@@ -69,27 +92,35 @@ const PatientModal = ({ isOpen, onClose, patientName }) => {
 
 const DoctorDashboard = () => {
   const [selectedPatient, setSelectedPatient] = useState(null);
+  const [activeTab, setActiveTab] = useState('today');
+  
+  // State to manage which component to show ('dashboard' or 'prescription')
+  const [currentView, setCurrentView] = useState('dashboard');
+  
   const workloadPercentage = 75;
 
-  // Asgardeo Authentication Hook using Decoded Token for custom attributes
+  // Schedule & Date State
+  const todayFormatted = new Date().toISOString().split('T')[0];
+  const [scheduleDate, setScheduleDate] = useState(todayFormatted);
+  const [workingHours, setWorkingHours] = useState({ start: '09:00', end: '17:00' });
+  const [freeTime, setFreeTime] = useState({ start: '12:00', end: '13:00' });
+  const [headerDate, setHeaderDate] = useState('');
+
   const { state, getDecodedIDToken } = useAuthContext();
   const [doctorInfo, setDoctorInfo] = useState({ name: "Loading...", isAuthorized: false, isLoading: true });
 
-  // Fetch User Data and Verify Group or Registration Attribute
   useEffect(() => {
+    // Generate nicely formatted today's date for the header
+    const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+    setHeaderDate(new Date().toLocaleDateString(undefined, options));
+
     if (state.isAuthenticated) {
       getDecodedIDToken().then((token) => {
-        // Check for traditional Asgardeo Groups
         const userGroups = token.groups || [];
-        
-        // Check for the custom Self-Registration Attribute
         const accountType = token.account_type || token.accountType || ""; 
-        
-        // Authorize if they meet either condition
         const isDoctor = userGroups.includes("Doctors") || accountType.toLowerCase() === "doctor";
 
         setDoctorInfo({
-          // Token claims use underscores (given_name) instead of camelCase (givenName)
           name: token.given_name ? `Dr. ${token.given_name} ${token.family_name || ''}` : (token.username || "Doctor"),
           isAuthorized: isDoctor,
           isLoading: false
@@ -101,7 +132,6 @@ const DoctorDashboard = () => {
     }
   }, [state.isAuthenticated, getDecodedIDToken]);
 
-  // Loading State
   if (state.isLoading || doctorInfo.isLoading) {
     return (
       <div className="container text-center py-5 mt-5">
@@ -112,7 +142,6 @@ const DoctorDashboard = () => {
     );
   }
 
-  // Security Gate: Block access if not authorized
   if (!doctorInfo.isAuthorized) {
     return (
       <div className="container text-center py-5 mt-5">
@@ -124,13 +153,19 @@ const DoctorDashboard = () => {
     );
   }
 
+  // Render the WritePrescription component if currentView is 'prescription'
+  if (currentView === 'prescription') {
+    return <WritePrescription onBack={() => setCurrentView('dashboard')} />;
+  }
+
+  const displayedPatients = activeTab === 'today' ? mockAppointments : mockPreviousPatients;
+
   return (
     <div className="container">
       <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-end mb-5 gap-4">
         <div>
-          {/* Dynamic Name injected here */}
           <h1 className="display-6 fw-bold mb-2 text-dark">{doctorInfo.name}</h1>
-          <p className="text-muted fs-6">Cardiology Dept &bull; <span className="fw-medium text-dark">Today's Schedule</span></p>
+          <p className="text-muted fs-6">Cardiology Dept &bull; <span className="fw-medium text-dark">{headerDate}</span></p>
         </div>
         
         <div className="theme-card p-3 border-0 bg-section" style={{ width: '100%', maxWidth: '350px' }}>
@@ -150,14 +185,31 @@ const DoctorDashboard = () => {
       <div className="row g-5">
         <div className="col-lg-8">
           <div className="theme-card h-100 p-4 border-0">
-            <h4 className="mb-4 fw-bold text-dark d-flex align-items-center gap-2">
-              <Clock className="text-orange" size={24} /> Daily Timeline
-            </h4>
+            <div className="d-flex justify-content-between align-items-center mb-4">
+              <h4 className="mb-0 fw-bold text-dark d-flex align-items-center gap-2">
+                <Clock className="text-orange" size={24} /> Patient Roster
+              </h4>
+              <div className="d-flex gap-2">
+                <button 
+                  onClick={() => setActiveTab('today')} 
+                  className="btn btn-sm rounded-pill px-3" 
+                  style={{ backgroundColor: activeTab === 'today' ? 'var(--primary-orange)' : '#f3f4f6', color: activeTab === 'today' ? '#fff' : '#6b7280', fontWeight: 'bold' }}
+                >
+                  Today's Visits
+                </button>
+                <button 
+                  onClick={() => setActiveTab('previous')} 
+                  className="btn btn-sm rounded-pill px-3"
+                  style={{ backgroundColor: activeTab === 'previous' ? 'var(--primary-orange)' : '#f3f4f6', color: activeTab === 'previous' ? '#fff' : '#6b7280', fontWeight: 'bold' }}
+                >
+                  Previous History
+                </button>
+              </div>
+            </div>
             
             <div className="timeline-container d-flex flex-column gap-3">
-              {mockAppointments.map((apt) => (
-                <div key={apt.id} className="timeline-item position-relative" onClick={() => setSelectedPatient(apt.patient)} style={{ cursor: 'pointer' }}>
-                  
+              {displayedPatients.map((apt) => (
+                <div key={apt.id} className="timeline-item position-relative" onClick={() => setSelectedPatient(apt)} style={{ cursor: 'pointer' }}>
                   <div className={`theme-card p-3 shadow-sm transition-all ${apt.status === 'active' ? 'border-orange' : 'border-0 bg-section'}`} style={{ border: apt.status === 'active' ? '1px solid var(--primary-orange)' : '' }}>
                     <div className="d-flex justify-content-between align-items-start mb-1">
                       <div>
@@ -168,7 +220,7 @@ const DoctorDashboard = () => {
                         {apt.type}
                       </span>
                     </div>
-                    <small className="text-muted mt-2 d-block">Click to view details</small>
+                    <small className="text-muted mt-2 d-block text-truncate">History: {apt.history}</small>
                   </div>
                 </div>
               ))}
@@ -177,27 +229,57 @@ const DoctorDashboard = () => {
         </div>
 
         <div className="col-lg-4">
-          <div className="theme-card h-100 d-flex flex-column gap-3 bg-section border-0 p-4">
-            <h5 className="fw-bold text-dark mb-2">Quick Actions</h5>
-            <button className="btn-outline-gray w-100 py-3 text-start justify-content-start shadow-sm bg-white border-0">
-              <FileText size={20} className="text-orange" /> Write Prescription
-            </button>
-            <button className="btn-outline-gray w-100 py-3 text-start justify-content-start shadow-sm bg-white border-0">
-              <Activity size={20} className="text-orange" /> Order Labs
-            </button>
-            
-            <div className="mt-auto pt-4 border-top">
-              <div className="d-flex align-items-center gap-3 bg-white p-3 rounded-3 shadow-sm border-0">
-                <div className="orange-icon-bg p-2 rounded-2">
-                  <span className="fw-bold fs-6">SYS</span>
-                </div>
-                <div>
-                  <small className="text-muted d-block fw-bold text-uppercase" style={{ fontSize: '10px' }}>Platform Status</small>
-                  <span className="text-success fw-bold d-flex align-items-center gap-2 small">
-                    <span className="spinner-grow spinner-grow-sm text-success" role="status" style={{ width: '0.5rem', height: '0.5rem' }}></span> Secured by Asgardeo
-                  </span>
+          <div className="d-flex flex-column gap-4 h-100">
+            {/* Quick Actions */}
+            <div className="theme-card d-flex flex-column gap-3 bg-section border-0 p-4">
+              <h5 className="fw-bold text-dark mb-2">Quick Actions</h5>
+              <button 
+                className="btn-outline-gray w-100 py-3 text-start justify-content-start shadow-sm bg-white border-0"
+                onClick={() => setCurrentView('prescription')}
+              >
+                <Pill size={20} className="text-orange" /> Write Prescription
+              </button>
+              <button className="btn-outline-gray w-100 py-3 text-start justify-content-start shadow-sm bg-white border-0">
+                <Activity size={20} className="text-orange" /> Order Labs
+              </button>
+            </div>
+
+            {/* Schedule Management Widget */}
+            <div className="theme-card d-flex flex-column gap-3 bg-section border-0 p-4 flex-grow-1">
+              <h5 className="fw-bold text-dark mb-2">Manage Schedule</h5>
+              
+              <div>
+                <label className="text-muted small fw-bold text-uppercase mb-2" style={{ fontSize: '10px' }}>Select Date</label>
+                <input 
+                  type="date" 
+                  className="form-control bg-white border-0 shadow-sm" 
+                  value={scheduleDate} 
+                  min={todayFormatted}
+                  onChange={(e) => setScheduleDate(e.target.value)} 
+                />
+              </div>
+
+              <div>
+                <label className="text-muted small fw-bold text-uppercase mb-2 mt-2" style={{ fontSize: '10px' }}>Appointment Hours</label>
+                <div className="d-flex align-items-center gap-2">
+                  <input type="time" className="form-control bg-white border-0 shadow-sm" value={workingHours.start} onChange={(e) => setWorkingHours({...workingHours, start: e.target.value})} />
+                  <span className="text-muted small">to</span>
+                  <input type="time" className="form-control bg-white border-0 shadow-sm" value={workingHours.end} onChange={(e) => setWorkingHours({...workingHours, end: e.target.value})} />
                 </div>
               </div>
+
+              <div>
+                <label className="text-muted small fw-bold text-uppercase mb-2 mt-2" style={{ fontSize: '10px' }}>Block Free Time</label>
+                <div className="d-flex align-items-center gap-2">
+                  <input type="time" className="form-control bg-white border-0 shadow-sm" value={freeTime.start} onChange={(e) => setFreeTime({...freeTime, start: e.target.value})} />
+                  <span className="text-muted small">to</span>
+                  <input type="time" className="form-control bg-white border-0 shadow-sm" value={freeTime.end} onChange={(e) => setFreeTime({...freeTime, end: e.target.value})} />
+                </div>
+              </div>
+              
+              <button className="btn w-100 py-2 mt-auto" style={{ backgroundColor: 'var(--primary-orange)', color: '#fff', fontWeight: 'bold', borderRadius: '0.5rem' }}>
+                Save Schedule
+              </button>
             </div>
           </div>
         </div>
@@ -206,7 +288,8 @@ const DoctorDashboard = () => {
       <PatientModal 
         isOpen={!!selectedPatient} 
         onClose={() => setSelectedPatient(null)} 
-        patientName={selectedPatient} 
+        patient={selectedPatient} 
+        onWritePrescription={() => setCurrentView('prescription')}
       />
     </div>
   );
