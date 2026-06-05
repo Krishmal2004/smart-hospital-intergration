@@ -18,7 +18,3 @@ public type PrescriptionPayload record {|
     PatientRequest patient;        
     PrescriptionDetails prescription;
 |};
-
-
-
-test
