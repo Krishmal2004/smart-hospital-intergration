@@ -3,7 +3,6 @@ import ballerina/url;
 import patient_service.controllers;
 import patient_service.models;
 
-// Added missing record for the PATCH profile update payload
 public type PatientProfileUpdate record {|
     string id;
     string firstName;
@@ -166,6 +165,20 @@ service /api on new http:Listener(8080) {
         if result is error {
             return <http:InternalServerError>{
                 body: { "error": "Failed to save prescription", "details": result.message() }
+            };
+        }
+        return result;
+    }
+
+    //Lab Order endpont 
+    isolated resource function post lab_orders(models:LabOrderPayload payload) returns json|http:InternalServerError {
+        json|error result = controllers:saveLabOrderToDB(payload);
+        if result is error {
+            return <http:InternalServerError> {
+                body: {
+                    "error": "Failed to save lab order",
+                    "details": result.message()
+                }
             };
         }
         return result;
