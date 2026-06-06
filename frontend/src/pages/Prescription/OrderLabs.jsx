@@ -9,7 +9,10 @@ const OrderLabs = ({ onBack, preselectedPatient = null }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [selectedPatient, setSelectedPatient] = useState(preselectedPatient);
-  const [isLoading, setIsLoading] = useState(true); 
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
   
   const [labData, setLabData] = useState({
     date: new Date().toISOString().split('T')[0],
@@ -24,7 +27,7 @@ const OrderLabs = ({ onBack, preselectedPatient = null }) => {
     "HbA1c", "Thyroid Panel (TSH)", "Urinalysis", "Vitamin D, 25-Hydroxy", "ECG / EKG"
   ];
 
-  // Fetch patients just like in WritePrescription
+  // Fetch patients
   useEffect(() => {
     const fetchPatients = async () => {
       try {
@@ -39,7 +42,7 @@ const OrderLabs = ({ onBack, preselectedPatient = null }) => {
         if (response.ok) {
           const data = await response.json();
           const formattedPatients = data.map(p => ({
-            id: p.id ? p.id.substring(0, 8) : 'Unknown', 
+            id: p.id ? p.id : 'Unknown',
             name: p.name,
             age: 'N/A', 
             location: 'N/A', 
@@ -47,9 +50,12 @@ const OrderLabs = ({ onBack, preselectedPatient = null }) => {
           }));
           setPatientDB(formattedPatients);
           setSearchResults(formattedPatients); 
+        } else {
+          setErrorMessage('Failed to load patients');
         }
       } catch (error) {
         console.error("Failed to fetch patients:", error);
+        setErrorMessage('Error loading patients: ' + error.message);
       } finally {
         setIsLoading(false);
       }
@@ -82,16 +88,80 @@ const OrderLabs = ({ onBack, preselectedPatient = null }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (labData.tests.length === 0) {
-      alert("Please select at least one lab test.");
+    
+    // Validation
+    if (!selectedPatient) {
+      setErrorMessage('Please select a patient');
       return;
     }
-    
-    // Here you would add your API call to save the lab order to the backend
-    console.log("Submitting Lab Order:", { patient: selectedPatient, order: labData });
-    alert("Lab Order submitted successfully!");
-    
-    if (onBack) onBack(); // Go back to dashboard after success
+
+    if (labData.tests.length === 0) {
+      setErrorMessage('Please select at least one lab test');
+      return;
+    }
+
+    if (!labData.date) {
+      setErrorMessage('Please select a date');
+      return;
+    }
+
+    if (!labData.time) {
+      setErrorMessage('Please select a time');
+      return;
+    }
+
+    setIsSubmitting(true);
+    setErrorMessage('');
+    setSuccessMessage('');
+
+    try {
+      const token = await getAccessToken();
+      
+      const payload = {
+        patient: {
+          id: selectedPatient.id,
+          name: selectedPatient.name
+        },
+        'order': {
+          date: labData.date,
+          time: labData.time,
+          priority: labData.priority,
+          tests: labData.tests,
+          notes: labData.notes
+        }
+      };
+
+      console.log("Submitting Lab Order:", payload);
+
+      const response = await fetch('http://localhost:8080/api/lab_orders', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        setSuccessMessage('Lab Order submitted successfully!');
+        console.log("Lab Order saved:", result);
+        
+        // Reset form after 2 seconds
+        setTimeout(() => {
+          if (onBack) onBack();
+        }, 2000);
+      } else {
+        const errorData = await response.json();
+        setErrorMessage('Failed to submit lab order: ' + (errorData.error || response.statusText));
+        console.error("Error response:", errorData);
+      }
+    } catch (error) {
+      console.error("Error submitting lab order:", error);
+      setErrorMessage('Error submitting lab order: ' + error.message);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -110,6 +180,23 @@ const OrderLabs = ({ onBack, preselectedPatient = null }) => {
           <p className="text-muted mb-0">Select a patient and schedule required diagnostics</p>
         </div>
       </div>
+
+      {/* Error Message Alert */}
+      {errorMessage && (
+        <div className="alert alert-danger alert-dismissible fade show mb-3" role="alert">
+          <AlertCircle size={18} className="me-2" style={{ display: 'inline' }} />
+          {errorMessage}
+          <button type="button" className="btn-close" onClick={() => setErrorMessage('')}></button>
+        </div>
+      )}
+
+      {/* Success Message Alert */}
+      {successMessage && (
+        <div className="alert alert-success alert-dismissible fade show mb-3" role="alert">
+          {successMessage}
+          <button type="button" className="btn-close" onClick={() => setSuccessMessage('')}></button>
+        </div>
+      )}
 
       <div className="row g-4">
         {/* Left Column: Search & Patient Details */}
@@ -137,20 +224,28 @@ const OrderLabs = ({ onBack, preselectedPatient = null }) => {
                     <div className="spinner-border spinner-border-sm text-orange mb-2"></div>
                     <p className="small mb-0">Loading patients...</p>
                   </div>
-                ) : searchResults.map(patient => (
-                  <div 
-                    key={patient.id} 
-                    className="p-3 border-bottom d-flex justify-content-between align-items-center"
-                    style={{ cursor: 'pointer', transition: 'background 0.2s' }}
-                    onClick={() => { setSelectedPatient(patient); setSearchTerm(patient.name); }}
-                  >
-                    <div>
-                      <h6 className="fw-bold mb-0 text-dark">{patient.name}</h6>
-                      <small className="text-muted">{patient.id}</small>
+                ) : searchResults.length > 0 ? (
+                  searchResults.map(patient => (
+                    <div 
+                      key={patient.id} 
+                      className="p-3 border-bottom d-flex justify-content-between align-items-center"
+                      style={{ cursor: 'pointer', transition: 'background 0.2s' }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                      onClick={() => { setSelectedPatient(patient); setSearchTerm(patient.name); }}
+                    >
+                      <div>
+                        <h6 className="fw-bold mb-0 text-dark">{patient.name}</h6>
+                        <small className="text-muted">{patient.id}</small>
+                      </div>
+                      <span className="badge bg-light text-dark border">Select</span>
                     </div>
-                    <span className="badge bg-light text-dark border">Select</span>
+                  ))
+                ) : (
+                  <div className="p-4 text-center text-muted small">
+                    <p className="small mb-0">No patients found</p>
                   </div>
-                ))}
+                )}
               </div>
             )}
 
@@ -197,15 +292,31 @@ const OrderLabs = ({ onBack, preselectedPatient = null }) => {
               <div className="row mb-4 g-3">
                 <div className="col-md-4">
                   <label className="text-muted small fw-bold text-uppercase mb-2 d-flex align-items-center gap-2"><Calendar size={14}/> Schedule Date</label>
-                  <input type="date" className="form-control bg-section border-0 shadow-sm py-2" value={labData.date} onChange={(e) => setLabData({...labData, date: e.target.value})} required />
+                  <input 
+                    type="date" 
+                    className="form-control bg-section border-0 shadow-sm py-2" 
+                    value={labData.date} 
+                    onChange={(e) => setLabData({...labData, date: e.target.value})} 
+                    required 
+                  />
                 </div>
                 <div className="col-md-4">
                   <label className="text-muted small fw-bold text-uppercase mb-2 d-flex align-items-center gap-2"><Clock size={14}/> Time</label>
-                  <input type="time" className="form-control bg-section border-0 shadow-sm py-2" value={labData.time} onChange={(e) => setLabData({...labData, time: e.target.value})} required />
+                  <input 
+                    type="time" 
+                    className="form-control bg-section border-0 shadow-sm py-2" 
+                    value={labData.time} 
+                    onChange={(e) => setLabData({...labData, time: e.target.value})} 
+                    required 
+                  />
                 </div>
                 <div className="col-md-4">
                   <label className="text-muted small fw-bold text-uppercase mb-2 d-flex align-items-center gap-2"><AlertCircle size={14}/> Priority</label>
-                  <select className="form-select bg-section border-0 shadow-sm py-2" value={labData.priority} onChange={(e) => setLabData({...labData, priority: e.target.value})}>
+                  <select 
+                    className="form-select bg-section border-0 shadow-sm py-2" 
+                    value={labData.priority} 
+                    onChange={(e) => setLabData({...labData, priority: e.target.value})}
+                  >
                     <option value="Routine">Routine</option>
                     <option value="Urgent">Urgent</option>
                     <option value="STAT">STAT (Immediate)</option>
@@ -249,8 +360,22 @@ const OrderLabs = ({ onBack, preselectedPatient = null }) => {
               </div>
 
               <div className="d-flex justify-content-end gap-3 border-top pt-4">
-                <button type="submit" className="btn px-4 py-2 d-flex align-items-center gap-2" style={{ backgroundColor: 'var(--primary-orange)', color: '#fff', fontWeight: 'bold' }}>
-                  <Save size={18} /> Submit Lab Order
+                <button 
+                  type="submit" 
+                  className="btn px-4 py-2 d-flex align-items-center gap-2" 
+                  style={{ backgroundColor: 'var(--primary-orange)', color: '#fff', fontWeight: 'bold' }}
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? (
+                    <>
+                      <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                      Submitting...
+                    </>
+                  ) : (
+                    <>
+                      <Save size={18} /> Submit Lab Order
+                    </>
+                  )}
                 </button>
               </div>
             </form>
