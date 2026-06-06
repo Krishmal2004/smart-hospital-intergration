@@ -4,6 +4,7 @@ public type PatientRequest record {|
     string age?;
     string location?;
     string allergies?;
+    string bloodGroup?;
 |};
 
 public type PrescriptionDetails record {|

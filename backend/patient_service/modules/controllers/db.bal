@@ -22,7 +22,7 @@ public isolated function savePrescriptionToDB(models:PrescriptionPayload payload
 
     sql:ExecutionResult result = check dbClient->execute(
     `INSERT INTO prescriptions (patient_id, patient_name, issue_date, diagnosis, medication, instructions, notes)
-     VALUES (${payload.patient.id}, ${payload.patient.name}, ${payload.prescription.date}, ${payload.prescription.diagnosis}, ${payload.prescription.medication}, ${payload.prescription.instructions}, ${notes})`
+     VALUES (${payload.patient.id}, ${payload.patient.name}, CAST(${payload.prescription.date} AS DATE), ${payload.prescription.diagnosis}, ${payload.prescription.medication}, ${payload.prescription.instructions}, ${notes})`
     );
 
     return {

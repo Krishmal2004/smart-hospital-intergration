@@ -102,7 +102,8 @@ const WritePrescription = ({ onBack }) => {
             diagnosis: '', medication: '', instructions: '', notes: '' 
         });
       } else {
-        alert("Failed to save prescription.");
+        const errorData = await response.json();
+        alert(`Failed to save: ${errorData.details || 'Unknown database error'}`);
       }
     } catch (error) {
       console.error("Error submitting prescription:", error);
