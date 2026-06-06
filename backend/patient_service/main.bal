@@ -3,11 +3,22 @@ import ballerina/url;
 import patient_service.controllers;
 import patient_service.models;
 
+// Added missing record for the PATCH profile update payload
+public type PatientProfileUpdate record {|
+    string id;
+    string firstName;
+    string lastName;
+    string country;
+    string mobileNumber;
+    string birthDate;
+|};
+
 type Doctor record {|
     string id;
     string name;
     string specialty;
 |};
+
 type Patient record {|
     string id;
     string name;
@@ -15,7 +26,6 @@ type Patient record {|
 
 configurable string clientId = ?;
 configurable string clientSecret = ?;
-
 configurable string asgardeoOrgUrl = ?;
 
 final http:Client asgardeoClient = check new (asgardeoOrgUrl, {
@@ -23,7 +33,7 @@ final http:Client asgardeoClient = check new (asgardeoOrgUrl, {
         tokenUrl: asgardeoOrgUrl + "/oauth2/token",
         clientId: clientId,
         clientSecret: clientSecret,
-        scopes: ["internal_user_mgt_list"]
+        scopes: ["internal_user_mgt_list", "internal_user_mgt_update"]
     }
 });
 
@@ -36,7 +46,7 @@ final http:Client asgardeoClient = check new (asgardeoOrgUrl, {
 }
 service /api on new http:Listener(8080) {
 
-    //Doctors Endpoint
+    // Doctors Endpoint
     isolated resource function get doctors() returns Doctor[]|error {
         string filterQuery = check url:encode("groups eq Doctors", "UTF-8");
         string scimPath = "/scim2/Users?filter=" + filterQuery;
@@ -44,13 +54,13 @@ service /api on new http:Listener(8080) {
         json scimResponse = check asgardeoClient->get(scimPath);
         Doctor[] doctors = [];
         json|error resources = scimResponse.Resources;
-
+        
         if resources is json[] {
             foreach json user in resources {
                 string userId = (check user.id).toString();
                 string firstName = (check user.name.givenName).toString();
                 string lastName = (check user.name.familyName).toString();
-
+                
                 doctors.push({
                     id: userId,
                     name: "Dr. " + firstName + " " + lastName,
@@ -61,27 +71,22 @@ service /api on new http:Listener(8080) {
         return doctors;
     }
 
-    //Patients Endpoint
+    // Patients Endpoint
     isolated resource function get patients() returns Patient[]|error {
         string scimPath = "/scim2/Users";
         json scimResponse = check asgardeoClient->get(scimPath);
         Patient[] patients = [];
         
         json|error resourcesField = scimResponse.Resources;
-        
         if resourcesField is json[] {
             foreach json user in resourcesField {
-
                 string userJsonString = user.toJsonString().toLowerAscii();
-                
                 if userJsonString.includes("\"patient\"") {
                     string userId = (check user.id).toString();
-                    
                     string firstName = user.name.givenName is string ? (check user.name.givenName).toString() : "";
                     string lastName = user.name.familyName is string ? (check user.name.familyName).toString() : "";
                     
                     string fullName = (firstName + " " + lastName).trim();
-                    
                     if fullName == "" {
                         string rawUsername = user.userName is string ? (check user.userName).toString() : "Unknown";
                         int? slashIndex = rawUsername.indexOf("/");
@@ -110,16 +115,59 @@ service /api on new http:Listener(8080) {
         return patients;
     }
 
-    //Prescription endpoint
+    // Update Patient Profile Endpoint
+    isolated resource function patch patients(PatientProfileUpdate payload) returns json|http:InternalServerError {
+        string scimPath = "/scim2/Users/" + payload.id;
+        
+        json scimPayload = {
+            "schemas": ["urn:ietf:params:scim:api:messages:2.0:PatchOp"],
+            "Operations": [
+                {
+                    "op": "replace",
+                    "value": {
+                        "name": {
+                            "givenName": payload.firstName,
+                            "familyName": payload.lastName
+                        },
+                        "phoneNumbers": [
+                            {
+                                "type": "mobile",
+                                "value": payload.mobileNumber
+                            }
+                        ],
+                        "addresses": [
+                            {
+                                "type": "home",
+                                "country": payload.country
+                            }
+                        ],
+                        "urn:scim:wso2:schema": {
+                            "dateOfBirth": payload.birthDate
+                        }
+                    }
+                }
+            ]
+        };
+        
+        json|error response = asgardeoClient->patch(scimPath, scimPayload);
+
+        if response is error {
+            return <http:InternalServerError>{
+                body: { "error": "Failed to update Asgardeo profile", "details": response.message() }
+            };
+        }
+        
+        return { "message": "Profile updated successfully in Asgardeo" };
+    }
+
+    // Prescription endpoint
     isolated resource function post prescriptions(models:PrescriptionPayload payload) returns json|http:InternalServerError {
         json|error result = controllers:savePrescriptionToDB(payload);
-        
         if result is error {
             return <http:InternalServerError>{
                 body: { "error": "Failed to save prescription", "details": result.message() }
             };
         }
-        
         return result;
     }
 }
