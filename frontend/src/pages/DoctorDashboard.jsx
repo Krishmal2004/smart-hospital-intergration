@@ -3,6 +3,7 @@ import { useAuthContext } from "@asgardeo/auth-react";
 import { Clock, User, FileText, Activity, TrendingUp, Pill } from 'lucide-react';
 
 import WritePrescription from './Prescription/WritePrescription';
+import OrderLabs from './Prescription/OrderLabs';
 
 const mockAppointments = [
   { id: 1, time: '09:00 AM', patient: 'Sarah Jenkins', type: 'Follow-up', status: 'completed', history: 'Patient has a history of mild hypertension, managed with lifestyle changes. Last comprehensive metabolic panel was 3 months ago with normal results.' },
@@ -157,6 +158,9 @@ const DoctorDashboard = () => {
   if (currentView === 'prescription') {
     return <WritePrescription onBack={() => setCurrentView('dashboard')} />;
   }
+  if (currentView === 'orderLabs') {
+    return <OrderLabs onBack={() => setCurrentView('dashboard')} />;
+  }
 
   const displayedPatients = activeTab === 'today' ? mockAppointments : mockPreviousPatients;
 
@@ -239,7 +243,10 @@ const DoctorDashboard = () => {
               >
                 <Pill size={20} className="text-orange" /> Write Prescription
               </button>
-              <button className="btn-outline-gray w-100 py-3 text-start justify-content-start shadow-sm bg-white border-0">
+              <button 
+                className="btn-outline-gray w-100 py-3 text-start justify-content-start shadow-sm bg-white border-0"
+                onClick={() => setCurrentView('orderLabs')}
+              >
                 <Activity size={20} className="text-orange" /> Order Labs
               </button>
             </div>
