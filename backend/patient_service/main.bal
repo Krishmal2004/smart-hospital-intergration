@@ -1,7 +1,7 @@
 import ballerina/http;
 import ballerina/url;
 import patient_service.controllers;
-import patient_service.models;
+import patient_service.Models;
 
 public type PatientProfileUpdate record {|
     string id;
@@ -160,7 +160,7 @@ service /api on new http:Listener(8080) {
     }
 
     // Prescription endpoint
-    isolated resource function post prescriptions(models:PrescriptionPayload payload) returns json|http:InternalServerError {
+    isolated resource function post prescriptions(Models:PrescriptionPayload payload) returns json|http:InternalServerError {
         json|error result = controllers:savePrescriptionToDB(payload);
         if result is error {
             return <http:InternalServerError>{
@@ -171,7 +171,7 @@ service /api on new http:Listener(8080) {
     }
 
     //Lab Order endpont 
-    isolated resource function post lab_orders(models:LabOrderPayload payload) returns json|http:InternalServerError {
+    isolated resource function post lab_orders(Models:LabOrderPayload payload) returns json|http:InternalServerError {
         json|error result = controllers:saveLabOrderToDB(payload);
         if result is error {
             return <http:InternalServerError> {
