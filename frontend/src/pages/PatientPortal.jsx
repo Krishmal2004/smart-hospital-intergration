@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
+import { useAuthContext } from '@asgardeo/auth-react';
 import {
   Calendar as CalendarIcon, ChevronRight, ChevronLeft, FileText, Pill, Receipt,
   CheckCircle, Activity, Heart, Clock, Shield, Bell, TrendingUp, Droplets,
   Thermometer, User, ArrowUpRight, Star, Zap, Phone, MessageSquare
 } from 'lucide-react';
 
-/* ───────── Animated Health Ring ───────── */
+/* ───────── Shared Components (Unchanged) ───────── */
 const HealthRing = ({ value, max, label, icon: Icon, color, unit }) => {
   const [animatedValue, setAnimatedValue] = useState(0);
   const radius = 36;
@@ -40,7 +41,6 @@ const HealthRing = ({ value, max, label, icon: Icon, color, unit }) => {
   );
 };
 
-/* ───────── Stat Card ───────── */
 const StatCard = ({ icon: Icon, label, value, trend, trendUp }) => (
   <div className="theme-card p-3 border-0 stat-card-hover">
     <div className="d-flex align-items-center gap-3">
@@ -60,7 +60,6 @@ const StatCard = ({ icon: Icon, label, value, trend, trendUp }) => (
   </div>
 );
 
-/* ───────── Calendar Widget (Enhanced) ───────── */
 const CalendarWidget = () => {
   const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
   const dates = [2, 3, 4, 5, 6];
@@ -70,7 +69,6 @@ const CalendarWidget = () => {
 
   return (
     <div className="theme-card p-4 border-0 h-100">
-      {/* Header */}
       <div className="d-flex align-items-center justify-content-between mb-4">
         <div className="d-flex align-items-center gap-3">
           <div className="orange-icon-bg p-2" style={{ borderRadius: '0.75rem', width: 44, height: 44 }}>
@@ -91,7 +89,6 @@ const CalendarWidget = () => {
         </div>
       </div>
 
-      {/* Day Selector */}
       <div className="d-flex gap-2 mb-4">
         {days.map((day, i) => (
           <button
@@ -111,7 +108,6 @@ const CalendarWidget = () => {
         ))}
       </div>
 
-      {/* Time Grid */}
       <div className="d-grid gap-2 mb-4" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
         {times.map((time, i) => {
           const isAvailable = (i + selectedDay) % 3 !== 0;
@@ -142,7 +138,6 @@ const CalendarWidget = () => {
         })}
       </div>
 
-      {/* CTA */}
       <button
         disabled={!selectedSlot}
         className="btn-primary-orange w-100 py-3 shadow-sm"
@@ -156,7 +151,6 @@ const CalendarWidget = () => {
   );
 };
 
-/* ───────── Document Vault (Enhanced) ───────── */
 const DocumentVault = () => {
   const docs = [
     { title: 'Blood Test Results', date: 'Oct 15, 2023', icon: FileText, color: '#f97316', bg: '#ffedd5', badge: 'New' },
@@ -220,7 +214,91 @@ const DocumentVault = () => {
   );
 };
 
-/* ───────── Medication Tracker ───────── */
+const AvailableDoctors = () => {
+  const { getAccessToken } = useAuthContext();
+  const [doctors, setDoctors] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchDoctors = async () => {
+      try {
+        const token = await getAccessToken();
+        const response = await fetch('http://localhost:8080/api/doctors', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setDoctors(data);
+        } else {
+          console.error("Backend returned an error:", response.status);
+        }
+      } catch (error) {
+        console.error("Failed to fetch doctors:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDoctors();
+  }, [getAccessToken]);
+
+  return (
+    <div className="theme-card p-4 border-0 h-100">
+      <div className="d-flex align-items-center justify-content-between mb-4">
+        <div>
+          <h5 className="mb-0 fw-bold text-dark">Available Doctors</h5>
+          <small className="text-muted">Find the right specialist</small>
+        </div>
+        <button className="btn btn-sm btn-light rounded-pill px-3 fw-medium" style={{ fontSize: '0.8rem' }}>
+          Directory <ArrowUpRight size={14} />
+        </button>
+      </div>
+
+      <div className="d-flex flex-column gap-3" style={{ maxHeight: '280px', overflowY: 'auto' }}>
+        {loading ? (
+          <div className="text-center text-muted py-4">
+            <div className="spinner-border spinner-border-sm text-orange mb-2" role="status"></div>
+            <p className="small mb-0">Loading doctors...</p>
+          </div>
+        ) : doctors.length === 0 ? (
+          <div className="text-center text-muted py-4">
+            <p className="small mb-0">No doctors available.</p>
+          </div>
+        ) : (
+          doctors.map((doc, i) => (
+            <div
+              key={doc.id || i}
+              className="d-flex align-items-center gap-3 p-3 rounded-3 doc-item"
+              style={{
+                background: '#fafafa',
+                border: '1px solid transparent',
+                transition: 'all 0.25s ease',
+                cursor: 'pointer'
+              }}
+            >
+              <div
+                className="d-flex align-items-center justify-content-center rounded-3"
+                style={{ width: 48, height: 48, background: '#fff', fontSize: '1.4rem', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}
+              >
+                👨‍⚕️
+              </div>
+              <div className="flex-grow-1">
+                <p className="fw-bold mb-0 text-dark" style={{ fontSize: '0.88rem' }}>{doc.name}</p>
+                <small className="text-muted" style={{ fontSize: '0.72rem' }}>{doc.specialty || 'General Practitioner'}</small>
+              </div>
+              <ChevronRight size={16} className="text-muted" />
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+};
+
 const MedicationTracker = () => {
   const meds = [
     { name: 'Lisinopril', dose: '10mg', time: '8:00 AM', taken: true, color: '#8b5cf6' },
@@ -270,7 +348,6 @@ const MedicationTracker = () => {
   );
 };
 
-/* ───────── Quick Actions ───────── */
 const QuickActions = () => {
   const actions = [
     { icon: Phone, label: 'Call Doctor', color: '#3b82f6', bg: '#dbeafe' },
@@ -280,7 +357,7 @@ const QuickActions = () => {
   ];
 
   return (
-    <div className="theme-card p-4 border-0">
+    <div className="theme-card p-4 border-0 h-100">
       <h5 className="mb-3 fw-bold text-dark">Quick Actions</h5>
       <div className="d-grid gap-2" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
         {actions.map((action, i) => {
@@ -305,7 +382,6 @@ const QuickActions = () => {
   );
 };
 
-/* ───────── Upcoming Appointments ───────── */
 const UpcomingAppointments = () => {
   const appointments = [
     { doctor: 'Dr. Emily Chen', specialty: 'Cardiologist', date: 'Nov 5, 2023', time: '10:30 AM', avatar: '🩺' },
@@ -313,7 +389,7 @@ const UpcomingAppointments = () => {
   ];
 
   return (
-    <div className="theme-card p-4 border-0">
+    <div className="theme-card p-4 border-0 h-100">
       <div className="d-flex align-items-center justify-content-between mb-4">
         <h5 className="mb-0 fw-bold text-dark">Upcoming Visits</h5>
         <button className="btn btn-sm btn-light rounded-pill px-3 fw-medium" style={{ fontSize: '0.8rem' }}>
@@ -356,16 +432,78 @@ const UpcomingAppointments = () => {
    MAIN PATIENT PORTAL
    ═══════════════════════════════════════════ */
 const PatientPortal = () => {
+  const { getAccessToken, getDecodedIDToken } = useAuthContext();
   const [greeting, setGreeting] = useState('Good morning');
+  
+  // Profile Completion States
+  const [showProfileForm, setShowProfileForm] = useState(false);
+  const [userId, setUserId] = useState('');
+  const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
+    country: '',
+    mobileNumber: '',
+    birthDate: ''
+  });
 
   useEffect(() => {
+    // Greeting logic
     const hour = new Date().getHours();
     if (hour >= 12 && hour < 17) setGreeting('Good afternoon');
     else if (hour >= 17) setGreeting('Good evening');
-  }, []);
+
+    // Token & Profile Verification Logic
+    const checkUserProfile = async () => {
+      try {
+        const token = await getDecodedIDToken();
+        if (token) {
+          setUserId(token.sub);
+          const isLocallyCompleted = localStorage.getItem(`profile_completed_${token.sub}`);
+          if (!token.given_name && !isLocallyCompleted) {
+            setShowProfileForm(true);
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching token details", error);
+      }
+    };
+    checkUserProfile();
+  }, [getDecodedIDToken]);
+
+  // Handle Submit functionality
+  const handleProfileSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const accessToken = await getAccessToken();
+      const payload = {
+        id: userId,
+        ...formData
+      };
+
+      const response = await fetch('http://localhost:8080/api/patients', {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (response.ok) {
+        alert("Profile updated successfully!");
+        localStorage.setItem(`profile_completed_${userId}`, 'true')
+        setShowProfileForm(false); 
+      } else {
+        const errorData = await response.json();
+        alert(`Failed to update profile: ${errorData.details || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error("Error submitting profile form:", error);
+    }
+  };
 
   return (
-    <div className="patient-portal-page">
+    <div className="patient-portal-page position-relative">
       <style>{`
         .patient-portal-page {
           padding: 2rem 0 4rem;
@@ -375,9 +513,21 @@ const PatientPortal = () => {
           from { opacity: 0; transform: translateY(16px); }
           to { opacity: 1; transform: translateY(0); }
         }
-        @keyframes shimmer {
-          0% { background-position: -200% 0; }
-          100% { background-position: 200% 0; }
+        
+        /* Modal Styles */
+        .modal-overlay {
+          position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+          background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(4px);
+          display: flex; justify-content: center; align-items: center;
+          z-index: 1050; animation: fadeIn 0.3s ease;
+        }
+        .modal-content-custom {
+          background: #fff; border-radius: 1.25rem; width: 100%; max-width: 500px;
+          padding: 2rem; box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
         }
 
         .hero-greeting {
@@ -458,16 +608,66 @@ const PatientPortal = () => {
           0%, 100% { transform: scale(1); opacity: 1; }
           50% { transform: scale(1.3); opacity: 0.7; }
         }
-
-        .section-divider {
-          height: 1px;
-          background: linear-gradient(to right, transparent, #e5e7eb, transparent);
-          margin: 0.5rem 0;
-        }
       `}</style>
 
-      <div className="container">
-        {/* ── Hero Greeting ── */}
+      {/* ── Profile Completion Modal ── */}
+      {showProfileForm && (
+        <div className="modal-overlay">
+          <div className="modal-content-custom">
+            <h4 className="fw-bold mb-1">Complete Your Profile</h4>
+            <p className="text-muted small mb-4">Please provide your details to continue using the portal.</p>
+            
+            <form onSubmit={handleProfileSubmit}>
+              <div className="mb-3">
+                <label className="small text-muted mb-1">First Name</label>
+                <input type="text" className="form-control" placeholder="Enter your First Name" required 
+                  value={formData.firstName} onChange={e => setFormData({...formData, firstName: e.target.value})} />
+              </div>
+              
+              <div className="mb-3">
+                <label className="small text-muted mb-1">Last Name</label>
+                <input type="text" className="form-control" placeholder="Enter your Last Name" required 
+                  value={formData.lastName} onChange={e => setFormData({...formData, lastName: e.target.value})} />
+              </div>
+              
+              <div className="mb-3">
+                <label className="small text-muted mb-1">Country</label>
+                <select className="form-select text-muted" required
+                  value={formData.country} onChange={e => setFormData({...formData, country: e.target.value})}>
+                  <option value="" disabled>Select your Country</option>
+                  <option value="Sri Lanka">Sri Lanka</option>
+                  <option value="United States">United States</option>
+                  <option value="United Kingdom">United Kingdom</option>
+                  <option value="Australia">Australia</option>
+                </select>
+              </div>
+
+              <div className="mb-3">
+                <label className="small text-muted mb-1">Mobile Numbers</label>
+                <div className="input-group">
+                  <input type="tel" className="form-control" placeholder="Enter your Mobile Number" required 
+                    value={formData.mobileNumber} onChange={e => setFormData({...formData, mobileNumber: e.target.value})} />
+                </div>
+              </div>
+
+              <div className="mb-4">
+                <label className="small text-muted mb-1">Birth Date</label>
+                <input type="date" className="form-control text-muted" required 
+                  value={formData.birthDate} onChange={e => setFormData({...formData, birthDate: e.target.value})} />
+              </div>
+
+              <button type="submit" className="btn-primary-orange w-100 py-2 shadow-sm fw-bold border-0" style={{borderRadius: '0.5rem'}}>
+                Save Details
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── Patient Dashboard Grid (Blurred if modal is open) ── */}
+      <div className="container" style={{ filter: showProfileForm ? 'blur(4px)' : 'none', pointerEvents: showProfileForm ? 'none' : 'auto' }}>
+        
+        {/* Hero Greeting */}
         <div className="hero-greeting mb-4">
           <div className="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 position-relative" style={{ zIndex: 1 }}>
             <div>
@@ -477,7 +677,7 @@ const PatientPortal = () => {
                 </span>
               </div>
               <h1 className="fw-bolder mb-2 text-dark" style={{ fontSize: 'clamp(1.6rem, 3vw, 2.2rem)', letterSpacing: '-0.03em' }}>
-                {greeting}, Alex.
+                {greeting}{formData.firstName ? `, ${formData.firstName}` : ''}.
               </h1>
               <p className="mb-0 text-muted" style={{ fontSize: '1rem', maxWidth: 420 }}>
                 Your health journey at your fingertips. Let's keep you on track.
@@ -485,7 +685,6 @@ const PatientPortal = () => {
             </div>
 
             <div className="d-flex align-items-center gap-3">
-              {/* Notification Bell */}
               <div className="position-relative">
                 <button className="btn btn-light rounded-circle d-flex align-items-center justify-content-center" style={{ width: 44, height: 44 }}>
                   <Bell size={20} className="text-muted" />
@@ -493,7 +692,6 @@ const PatientPortal = () => {
                 <div className="notification-dot"></div>
               </div>
 
-              {/* Next Visit Card */}
               <div className="theme-card px-4 py-3 d-flex align-items-center gap-3 border-0" style={{ background: '#fff' }}>
                 <Heart size={22} className="text-orange" fill="#f97316" />
                 <div>
@@ -505,7 +703,7 @@ const PatientPortal = () => {
           </div>
         </div>
 
-        {/* ── Health Vitals ── */}
+        {/* Health Vitals */}
         <div className="theme-card p-4 border-0 mb-4">
           <div className="d-flex align-items-center justify-content-between mb-3">
             <div className="d-flex align-items-center gap-2">
@@ -530,7 +728,7 @@ const PatientPortal = () => {
           </div>
         </div>
 
-        {/* ── Stats Row ── */}
+        {/* Stats Row */}
         <div className="row g-3 mb-4">
           <div className="col-6 col-lg-3">
             <StatCard icon={CalendarIcon} label="Appointments" value="3 Upcoming" trend="2 this week" trendUp />
@@ -546,7 +744,7 @@ const PatientPortal = () => {
           </div>
         </div>
 
-        {/* ── Main Content Grid ── */}
+        {/* Main Content Grid */}
         <div className="row g-4 mb-4">
           <div className="col-lg-7">
             <CalendarWidget />
@@ -556,18 +754,26 @@ const PatientPortal = () => {
           </div>
         </div>
 
-        {/* ── Bottom Row ── */}
-        <div className="row g-4">
-          <div className="col-lg-4">
-            <MedicationTracker />
+        {/* Widget Row 1 */}
+        <div className="row g-4 mb-4">
+          <div className="col-lg-6">
+            <AvailableDoctors />
           </div>
-          <div className="col-lg-4">
+          <div className="col-lg-6">
             <UpcomingAppointments />
           </div>
-          <div className="col-lg-4">
+        </div>
+
+        {/* Widget Row 2 */}
+        <div className="row g-4">
+          <div className="col-lg-6">
+            <MedicationTracker />
+          </div>
+          <div className="col-lg-6">
             <QuickActions />
           </div>
         </div>
+
       </div>
     </div>
   );
