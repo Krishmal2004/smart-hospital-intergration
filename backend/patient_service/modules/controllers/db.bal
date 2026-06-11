@@ -1,4 +1,4 @@
-import patient_service.models;
+import patient_service.Models;
 
 import ballerina/sql;
 import ballerinax/postgresql;
@@ -17,7 +17,7 @@ final postgresql:Client dbClient = check new (
     database = dbName
 );
 
-public isolated function savePrescriptionToDB(models:PrescriptionPayload payload) returns json|error {
+public isolated function savePrescriptionToDB(Models:PrescriptionPayload payload) returns json|error {
     string notes = payload.prescription.notes ?: "";
 
     sql:ExecutionResult result = check dbClient->execute(

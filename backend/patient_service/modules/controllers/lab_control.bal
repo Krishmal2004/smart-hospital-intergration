@@ -1,8 +1,8 @@
-import patient_service.models;
+import patient_service.Models;
 import ballerina/sql;
 //import ballerina/log;
 
-public isolated function saveLabOrderToDB(models:LabOrderPayload payload) returns json|error {
+public isolated function saveLabOrderToDB(Models:LabOrderPayload payload) returns json|error {
     string notes = payload.'order.notes;
 
     string testsString = "";
