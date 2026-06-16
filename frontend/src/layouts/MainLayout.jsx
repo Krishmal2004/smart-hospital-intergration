@@ -55,6 +55,16 @@ const MainLayout = () => {
               ) : (
                 <>
                   <li className="nav-item">
+                    <Link to="/reception" className="text-decoration-none text-dark fw-medium d-flex align-items-center gap-2 px-2">
+                      <UserCircle size={18} /> Reception
+                    </Link>
+                  </li>
+                  <li className="nav-item">
+                    <Link to="/lab" className="text-decoration-none text-dark fw-medium d-flex align-items-center gap-2 px-2">
+                      <Activity size={18} /> Lab
+                    </Link>
+                  </li>
+                  <li className="nav-item">
                     <Link to="/login/patient" className="text-decoration-none text-dark fw-medium d-flex align-items-center gap-2 px-2">
                       <UserCircle size={18} /> Patient Login
                     </Link>
