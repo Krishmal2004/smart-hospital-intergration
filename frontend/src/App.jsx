@@ -7,6 +7,7 @@ import DoctorLogin from './pages/DoctorLogin';
 import PatientLogin from './pages/PatientLogin';
 import ReceptionDashboard from './prescription-counter(patient-registration && payment)/ReceptionDashboard';
 import LabDashboard from './lab/LabDashboard';
+import DispensaryDashboard from './dispensary/DispensaryDashboard';
 
 function App() {
   return (
@@ -20,6 +21,7 @@ function App() {
           <Route path="patient" element={<PatientPortal />} />
           <Route path="reception" element={<ReceptionDashboard />} />
           <Route path="lab" element={<LabDashboard />} />
+          <Route path="dispensary" element={<DispensaryDashboard />} />
         </Route>
       </Routes>
     </Router>
