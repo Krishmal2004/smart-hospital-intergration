@@ -350,7 +350,7 @@ modules = [
 [[package]]
 org = "ballerinax"
 name = "cdc"
-version = "1.3.1"
+version = "1.3.2"
 dependencies = [
 	{org = "ballerina", name = "crypto"},
 	{org = "ballerina", name = "data.jsondata"},
@@ -391,7 +391,7 @@ dependencies = [
 ]
 modules = [
 	{org = "dinid", packageName = "patient_service", moduleName = "patient_service"},
-	{org = "dinid", packageName = "patient_service", moduleName = "patient_service.controllers"},
-	{org = "dinid", packageName = "patient_service", moduleName = "patient_service.models"}
+	{org = "dinid", packageName = "patient_service", moduleName = "patient_service.Models"},
+	{org = "dinid", packageName = "patient_service", moduleName = "patient_service.controllers"}
 ]
 
