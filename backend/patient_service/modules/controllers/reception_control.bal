@@ -1,68 +1,62 @@
 import patient_service.Models;
+import ballerina/sql;
 
-table<Models:QueueItem> key(queueNo) queueDb = table [
-    {queueNo: "Q-001", patientId: "P001", patientName: "John Doe", doctorName: "Dr. Smith", department: "Cardiology", status: "Waiting"}
-];
-
-table<Models:Bill> key(patientId) billsDb = table [
-    {
-        patientId: "P001", patientName: "John Doe",
-        items: [
-            {description: "Consultation Fee (Dr. Smith)", amount: 50.00d},
-            {description: "Lab Test (Blood Count)", amount: 35.00d},
-            {description: "Pharmacy (Prescription #882)", amount: 42.50d}
-        ],
-        total: 127.50d, status: "Pending"
-    }
-];
-
-table<Models:Schedule> key(doctorId) schedulesDb = table [
-    {doctorId: "dr_smith", doctorName: "Dr. Smith", days: ["Mon", "Wed", "Fri"], startTime: "09:00", endTime: "14:00", duration: 30, status: "Active"},
-    {doctorId: "dr_adams", doctorName: "Dr. Adams", days: ["Tue", "Thu", "Sat"], startTime: "10:00", endTime: "16:00", duration: 20, status: "Active"}
-];
-
-// --- Queue Logic ---
-public isolated function getActiveQueue() returns Models:QueueItem[] {
-    lock { return queueDb.toArray(); }
+// ---- QUEUEING LOGIC ----
+public isolated function saveQueueToDB(Models:QueuePayload payload) returns json|error {
+    sql:ExecutionResult result = check dbClient->execute(
+        `INSERT INTO queues (patient_id, patient_name, doctor_id, department, status)
+         VALUES (${payload.patientId}, ${payload.patientName}, ${payload.doctorId}, ${payload.department}, ${payload.status})`
+    );
+    return {
+        "message": "Patient added to queue successfully",
+        "id": result.lastInsertId
+    };
 }
 
-public isolated function assignToQueue(Models:QueueItem payload) returns json|error {
-    lock {
-        error? err = queueDb.add(payload);
-        if err is error { return err; }
-        return { "message": "Patient added to queue successfully", "queueNo": payload.queueNo };
-    }
+// ---- SCHEDULING LOGIC ----
+public isolated function saveScheduleToDB(Models:SchedulePayload payload) returns json|error {
+    sql:ExecutionResult result = check dbClient->execute(
+        `INSERT INTO doctor_schedules (doctor_id, days, start_time, end_time, duration)
+         VALUES (${payload.doctorId}, ${payload.days}, CAST(${payload.startTime} AS TIME), CAST(${payload.endTime} AS TIME), ${payload.duration})`
+    );
+    return {
+        "message": "Doctor schedule saved successfully",
+        "id": result.lastInsertId
+    };
 }
 
-// --- Billing Logic ---
-public isolated function getPatientBill(string patientId) returns Models:Bill|error {
-    lock {
-        Models:Bill? bill = billsDb[patientId];
-        if bill is Models:Bill { return bill; }
-        return error("No pending bills found for this patient");
-    }
-}
+// ---- BILLING LOGIC ----
+public isolated function generatePatientBill(string patientId) returns Models:PatientBill|error {
+    Models:BillItem[] billItems = [];
+    decimal total = 0.0d; // Added 'd' for decimal
+    
+    billItems.push({ description: "Consultation Fee", amount: 50.00d }); // Added 'd'
+    total += 50.00d; // Added 'd'
 
-public isolated function processPayment(string patientId) returns json|error {
-    lock {
-        Models:Bill? bill = billsDb[patientId];
-        if bill is Models:Bill {
-            bill.status = "Paid";
-            billsDb.put(bill);
-            return { "message": "Payment processed successfully" };
-        }
-        return error("Bill not found");
-    }
-}
+    int labOrderCount = check dbClient->queryRow(
+        `SELECT COUNT(*) FROM lab_orders WHERE patient_id = ${patientId}`
+    );
 
-// --- Scheduling Logic ---
-public isolated function getSchedules() returns Models:Schedule[] {
-    lock { return schedulesDb.toArray(); }
-}
-
-public isolated function saveSchedule(Models:Schedule payload) returns json|error {
-    lock {
-        schedulesDb.put(payload);
-        return { "message": "Schedule updated successfully" };
+    if (labOrderCount > 0) {
+        decimal labFee = 35.00d * <decimal>labOrderCount; // Added 'd'
+        billItems.push({ description: "Lab Tests", amount: labFee });
+        total += labFee;
     }
+
+    // Check for Prescriptions
+    int prescriptionCount = check dbClient->queryRow(
+        `SELECT COUNT(*) FROM prescriptions WHERE patient_id = ${patientId}`
+    );
+
+    if (prescriptionCount > 0) {
+        decimal rxFee = 42.50d * <decimal>prescriptionCount; // Added 'd'
+        billItems.push({ description: "Pharmacy", amount: rxFee });
+        total += rxFee;
+    }
+
+    return {
+        patientId: patientId,
+        items: billItems,
+        totalAmount: total
+    };
 }

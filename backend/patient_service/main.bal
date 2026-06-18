@@ -183,4 +183,44 @@ service /api on new http:Listener(8080) {
         }
         return result;
     }
+
+    // Reception queueing endpoint
+    isolated resource function post queues(Models:QueuePayload payload) returns json|http:InternalServerError {
+        json|error result = controllers:saveQueueToDB(payload);
+        if result is error {
+            return <http:InternalServerError> {
+                body: {
+                    "error": "Failed to assign patient to queue",
+                    "details": result.message()
+                }
+            };
+        }
+        return result;
+    }
+    // Reception scheduling endpoint
+    isolated resource function post schedules(Models:SchedulePayload payload) returns json|http:InternalServerError {
+        json|error result = controllers:saveScheduleToDB(payload);
+        if result is error {
+            return <http:InternalServerError> {
+                body: {
+                    "error": "Failed to save doctor schedule",
+                    "details": result.message()
+                }
+            };
+        }
+        return result;
+    }
+    //Reception billing endpoint
+    isolated resource function get billing/[string patientId]() returns Models:PatientBill|http:InternalServerError {
+        Models:PatientBill|error result = controllers:generatePatientBill(patientId);
+        if result is error {
+            return <http:InternalServerError> {
+                body: {
+                    "error": "Failed to generate bill for patient",
+                    "details": result.message()
+                }
+            };
+        }
+        return result;
+    }
 }
