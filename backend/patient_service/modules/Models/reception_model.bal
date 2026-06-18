@@ -1,10 +1,17 @@
-public type QueueItem record {|
-    readonly string queueNo;
+public type QueuePayload record {|
     string patientId;
-    string patientName;
-    string doctorName;
+    string patientName; 
+    string doctorId;
     string department;
-    string status;
+    string status = "Waiting";
+|};
+
+public type SchedulePayload record {|
+    string doctorId;
+    string days;
+    string startTime;
+    string endTime;
+    int duration;
 |};
 
 public type BillItem record {|
@@ -12,20 +19,8 @@ public type BillItem record {|
     decimal amount;
 |};
 
-public type Bill record {|
-    readonly string patinetId;
-    string patientName;
+public type PatientBill record {|
+    string patientId;
     BillItem[] items;
-    decimal total;
-    string status;
-|};
-
-public type Schedule record {|
-    readonly string doctorId;
-    string doctorName;
-    string[] days;
-    string startTime;
-    string endTime;
-    int duration;
-    string status;
+    decimal totalAmount;
 |};
