@@ -54,6 +54,7 @@ const QueueingTab = () => {
       }
     } catch (error) {
       console.error("Queue assignment error:", error);
+      alert("Failed to connect to the backend. Is Ballerina running?");
     } finally {
       setIsSubmitting(false);
     }

@@ -51,7 +51,7 @@ const RegistrationTab = () => {
             </div>
           </div>
           <div className="col-md-6 text-md-end">
-            <button className="btn btn-primary" style={{backgroundColor: 'var(--primary-color, #ff6b35)', borderColor: 'var(--primary-color, #ff6b35)'}}>
+            <button className="btn btn-primary" onClick={() => alert("Open New Patient Modal!")}>
               <PlusCircle size={18} className="me-2" /> New Walk-in Patient
             </button>
           </div>
