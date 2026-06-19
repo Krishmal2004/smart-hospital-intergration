@@ -87,10 +87,10 @@ const BillingTab = () => {
               </div>
 
               <div className="mt-auto">
-                <button disabled={!billData} className="btn btn-success w-100 py-2 mb-2 d-flex align-items-center justify-content-center">
+                <button disabled={!billData} className="btn btn-success w-100 py-2 mb-2" onClick={() => alert("Payment Processed!")}>
                   <CheckCircle size={18} className="me-2" /> Complete Payment
                 </button>
-                <button disabled={!billData} className="btn btn-outline-secondary w-100 py-2 d-flex align-items-center justify-content-center">
+                <button disabled={!billData} className="btn btn-outline-secondary w-100 py-2" onClick={() => alert("Digital receipt sent!")}>
                   <Printer size={18} className="me-2" /> Send Digital Receipt
                 </button>
                 <div className="text-center mt-2 small text-muted">
