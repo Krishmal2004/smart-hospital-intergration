@@ -60,3 +60,21 @@ public isolated function generatePatientBill(string patientId) returns Models:Pa
         totalAmount: total
     };
 }
+
+//Get Queue Logic
+public isolated function getActiveQueue() returns Models:QueueResponse[]|error {
+    Models:QueueResponse[]queues =[];
+
+    stream<Models:QueueResponse, error?> resultStream = dbClient->query(
+        `SELECT queue_no, patient_id AS "patientId", patient_name AS "patientName", doctor_id AS "doctorId", department, status 
+         FROM queues ORDER BY queue_no ASC`
+    );
+    
+    check from Models:QueueResponse queue in resultStream
+        do {
+            queues.push(queue);
+        };
+        
+    check resultStream.close();
+    return queues;
+}
