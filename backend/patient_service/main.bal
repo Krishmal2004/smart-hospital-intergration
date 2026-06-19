@@ -197,6 +197,19 @@ service /api on new http:Listener(8080) {
         }
         return result;
     }
+    //Reception queuing get endPoint
+    isolated resource function get queues() returns Models:QueueResponse[]|http:InternalServerError {
+        Models:QueueResponse[]|error result = controllers:getActiveQueue();
+        if result is error {
+            return <http:InternalServerError> {
+                body: {
+                    "error": "Failed to fetch queues",
+                    "details": result.message()
+                }
+            };
+        }
+        return result;
+    }
     // Reception scheduling endpoint
     isolated resource function post schedules(Models:SchedulePayload payload) returns json|http:InternalServerError {
         json|error result = controllers:saveScheduleToDB(payload);

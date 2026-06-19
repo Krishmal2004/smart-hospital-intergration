@@ -4,21 +4,26 @@ import { Activity } from 'lucide-react';
 const QueueingTab = () => {
   const [patients, setPatients] = useState([]);
   const [doctors, setDoctors] = useState([]);
-  const [queues, setQueues] = useState([]); // Local state for active queues
+  const [queues, setQueues] = useState([]);
   
-  // Form State
   const [selectedPatientId, setSelectedPatientId] = useState('');
   const [selectedDoctorId, setSelectedDoctorId] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  useEffect(() => {
+  const loadData = () => {
     Promise.all([
       fetch('http://localhost:8080/api/patients').then(res => res.json()),
-      fetch('http://localhost:8080/api/doctors').then(res => res.json())
-    ]).then(([patientsData, doctorsData]) => {
+      fetch('http://localhost:8080/api/doctors').then(res => res.json()),
+      fetch('http://localhost:8080/api/queues').then(res => res.json())
+    ]).then(([patientsData, doctorsData, queuesData]) => {
       setPatients(patientsData);
       setDoctors(doctorsData);
+      setQueues(Array.isArray(queuesData) ? queuesData : []);
     }).catch(err => console.error("Error fetching data:", err));
+  };
+
+  useEffect(() => {
+    loadData();
   }, []);
 
   const handleAssign = async (e) => {
@@ -45,16 +50,18 @@ const QueueingTab = () => {
       });
       
       if (response.ok) {
-        // Add to local list so the user sees it immediately
-        setQueues([...queues, { ...payload, qNumber: `Q-${(queues.length + 1).toString().padStart(3, '0')}` }]);
+        const updatedQueues = await fetch('http://localhost:8080/api/queues').then(res => res.json());
+        setQueues(Array.isArray(updatedQueues) ? updatedQueues : []);
+        
         setSelectedPatientId('');
         setSelectedDoctorId('');
       } else {
-        alert("Failed to assign queue.");
+        const err = await response.json();
+        alert("Failed to assign queue: " + (err.details || err.error));
       }
     } catch (error) {
       console.error("Queue assignment error:", error);
-      alert("Failed to connect to the backend. Is Ballerina running?");
+      alert("Network Error: Could not connect to Ballerina.");
     } finally {
       setIsSubmitting(false);
     }
@@ -100,10 +107,11 @@ const QueueingTab = () => {
                 {queues.length === 0 ? (
                   <li className="list-group-item text-muted">No patients currently in queue.</li>
                 ) : (
-                  queues.map((q, idx) => (
-                    <li key={idx} className="list-group-item d-flex justify-content-between align-items-center px-0">
+                  queues.map((q) => (
+                    // 3. We use the actual queue_no from the database here
+                    <li key={q.queue_no} className="list-group-item d-flex justify-content-between align-items-center px-0">
                       <div>
-                        <span className="fw-bold">{q.qNumber}</span> - {q.patientName}
+                        <span className="fw-bold">Q-{String(q.queue_no).padStart(3, '0')}</span> - {q.patientName}
                         <div className="small text-muted">{q.department}</div>
                       </div>
                       <span className="badge bg-primary rounded-pill">{q.status}</span>

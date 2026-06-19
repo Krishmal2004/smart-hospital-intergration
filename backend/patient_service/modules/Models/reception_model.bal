@@ -24,3 +24,12 @@ public type PatientBill record {|
     BillItem[] items;
     decimal totalAmount;
 |};
+
+public type QueueResponse record {|
+    int queue_no;
+    string patientId;
+    string patientName;
+    string doctorId;
+    string department;
+    string status;
+|};
