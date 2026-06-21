@@ -32,7 +32,7 @@ final http:Client asgardeoClient = check new (asgardeoOrgUrl, {
         tokenUrl: asgardeoOrgUrl + "/oauth2/token",
         clientId: clientId,
         clientSecret: clientSecret,
-        scopes: ["internal_user_mgt_list", "internal_user_mgt_update"]
+        scopes: ["internal_user_mgt_list", "internal_user_mgt_update","internal_user_mgt_create"]
     }
 });
 
@@ -235,5 +235,61 @@ service /api on new http:Listener(8080) {
             };
         }
         return result;
+    }
+
+    isolated resource function post patients(Models:NewPatientPayload payload) returns json|http:InternalServerError {
+        string scimPath = "/scim2/Users";
+        
+        json scimPayload = {
+            "schemas": [
+                "urn:ietf:params:scim:schemas:core:2.0:User"
+            ],
+            "userName": "DEFAULT/" + payload.email, 
+            "password": payload.password,
+            "name": {
+                "givenName": payload.firstName,
+                "familyName": payload.lastName
+            },
+            "emails": [
+                {
+                    "primary": true,
+                    "value": payload.email
+                }
+            ],
+            "phoneNumbers": [
+                {
+                    "type": "mobile",
+                    "value": payload.mobileNumber
+                }
+            ]
+        };
+
+        http:Response|error response = asgardeoClient->post(scimPath, scimPayload);
+
+        if response is error {
+            return <http:InternalServerError>{
+                body: { "error": "Network/Client Error", "details": response.message() }
+            };
+        }
+        if response.statusCode != 201 && response.statusCode != 200 {
+            json|error errPayload = response.getJsonPayload();
+            
+            if errPayload is json {
+                string detailMsg = errPayload.toJsonString(); 
+                map<json>|error errMap = errPayload.ensureType();
+                if errMap is map<json> && errMap.hasKey("detail") {
+                    detailMsg = errMap["detail"].toString();
+                }
+
+                return <http:InternalServerError>{
+                    body: { "error": "Asgardeo rejected creation", "details": detailMsg }
+                };
+            }
+            return <http:InternalServerError>{
+                body: { "error": "Failed to create patient", "details": "Status Code: " + response.statusCode.toString() }
+            };
+        }
+
+        return { "message": "Patient created successfully in Asgardeo" };
     }
 }
