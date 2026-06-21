@@ -33,3 +33,11 @@ public type QueueResponse record {|
     string department;
     string status;
 |};
+
+public type NewPatientPayload record {|
+    string firstName;
+    string lastName;
+    string email;
+    string mobileNumber;
+    string password;
+|};
