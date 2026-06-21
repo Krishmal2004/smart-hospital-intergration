@@ -80,7 +80,8 @@ service /api on new http:Listener(8080) {
         if resourcesField is json[] {
             foreach json user in resourcesField {
                 string userJsonString = user.toJsonString().toLowerAscii();
-                if userJsonString.includes("\"patient\"") {
+                
+                if !userJsonString.includes("\"doctors\"") {
                     string userId = (check user.id).toString();
                     string firstName = user.name.givenName is string ? (check user.name.givenName).toString() : "";
                     string lastName = user.name.familyName is string ? (check user.name.familyName).toString() : "";
