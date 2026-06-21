@@ -21,6 +21,7 @@ type Doctor record {|
 type Patient record {|
     string id;
     string name;
+    string phone;
 |};
 
 configurable string clientId = ?;
@@ -105,9 +106,20 @@ service /api on new http:Listener(8080) {
                             fullName = "Unknown Patient";
                         }
                     }
+                    string phoneNumber = "Not Provided";
+                    var phoneNumbersArr = user.phoneNumbers;
+                    if phoneNumbersArr is json[] && phoneNumbersArr.length() >0 {
+                        var phoneVal = phoneNumbersArr[0].value;
+                        if phoneVal is string {
+                            phoneNumber = phoneVal;
+                        } else if phoneVal is json {
+                            phoneNumber = phoneVal.toJsonString();
+                        }
+                    }
                     patients.push({
                         id: userId,
-                        name: fullName
+                        name: fullName,
+                        phone: phoneNumber
                     });
                 }
             }
@@ -149,15 +161,37 @@ service /api on new http:Listener(8080) {
             ]
         };
         
-        json|error response = asgardeoClient->patch(scimPath, scimPayload);
+        http:Response|error response = asgardeoClient->patch(scimPath, scimPayload);
 
         if response is error {
             return <http:InternalServerError>{
                 body: { "error": "Failed to update Asgardeo profile", "details": response.message() }
             };
         }
-        
-        return { "message": "Profile updated successfully in Asgardeo" };
+        if response.statusCode != 200 && response.statusCode != 204 {
+            json|error errPayload = response.getJsonPayload();
+
+            if errPayload is json {
+                string detailMsg = errPayload.toJsonString();
+                map<json>|error errMap = errPayload.ensureType();
+                if errMap is map<json> && errMap.hasKey("detail") {
+                    detailMsg = errMap["detail"].toString();
+                }
+                return <http:InternalServerError>{
+                    body: {
+                        "error": "Asgardeo rejected update",
+                        "details": detailMsg
+                    }
+                };
+            }
+            return <http:InternalServerError>{
+                body: {
+                    "error": "Failed to update patient profile",
+                    "details": "Status Code: " + response.statusCode.toString()
+                }
+            };
+        }
+        return { "message": "Patient profile updated successfully in Asgardeo" };
     }
 
     // Prescription endpoint
