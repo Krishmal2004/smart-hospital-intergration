@@ -2,6 +2,25 @@ import React from 'react';
 import { Send, Printer } from 'lucide-react';
 
 const ReportDeliveryTab = ({ reports }) => {
+
+  const handleEmail = (report) => {
+    const subject = encodeURIComponent(`Lab Results Available: ${report.test} - ${report.patientName}`);
+    const body = encodeURIComponent(
+      `Dear ${report.patientName},\n\n` +
+      `Your laboratory results for the following test are now available:\n` +
+      `- Test: ${report.test}\n` +
+      `- Report ID: LR-${String(report.id).padStart(4, '0')}\n\n` +
+      `Please contact your referring doctor to review your results.\n\n` +
+      `Regards,\nSmart Hospital Laboratory`
+    );
+    
+    window.location.href = `mailto:?subject=${subject}&body=${body}`;
+  };
+
+  const handlePrint = (report) => {
+    window.print();
+  };
+
   return (
     <div className="card shadow-sm border-0 mb-4">
       <div className="card-body p-4">
@@ -24,15 +43,24 @@ const ReportDeliveryTab = ({ reports }) => {
               ) : (
                 reports.map(r => (
                   <tr key={r.id}>
-                    <td><span className="badge bg-light text-dark border">{r.id}</span></td>
+                    <td><span className="badge bg-light text-dark border">LR-{String(r.id).padStart(4, '0')}</span></td>
                     <td className="fw-medium">{r.patientName}</td>
                     <td>{r.test}</td>
                     <td><span className="badge bg-success">{r.status}</span></td>
                     <td>
-                      <button className="btn btn-sm btn-primary me-2 d-inline-flex align-items-center">
+                      {/* FIX: Added onClick to trigger the Email function */}
+                      <button 
+                        className="btn btn-sm btn-primary me-2 d-inline-flex align-items-center"
+                        onClick={() => handleEmail(r)}
+                      >
                         <Send size={14} className="me-1" /> Email PDF
                       </button>
-                      <button className="btn btn-sm btn-outline-secondary d-inline-flex align-items-center">
+                      
+                      {/* FIX: Added onClick to trigger the Print function */}
+                      <button 
+                        className="btn btn-sm btn-outline-secondary d-inline-flex align-items-center"
+                        onClick={() => handlePrint(r)}
+                      >
                         <Printer size={14} className="me-1" /> Print
                       </button>
                     </td>

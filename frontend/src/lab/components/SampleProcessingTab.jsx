@@ -1,7 +1,17 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Activity, Clock, CheckCircle } from 'lucide-react';
 
 const SampleProcessingTab = ({ processing, handleFinalizeReport }) => {
+  const [resultText, setResultText] = useState('');
+
+  const onSubmit = (e) => {
+    e.preventDefault();
+    if (processing.length > 0) {
+      handleFinalizeReport(processing[0].id, resultText);
+      setResultText(''); 
+    }
+  };
+
   return (
     <div className="card shadow-sm border-0 mb-4">
       <div className="card-body p-4">
@@ -15,7 +25,7 @@ const SampleProcessingTab = ({ processing, handleFinalizeReport }) => {
                 processing.map(p => (
                   <button key={p.id} className="list-group-item list-group-item-action p-3 border mb-2 rounded">
                     <div className="d-flex justify-content-between align-items-center mb-1">
-                      <span className="fw-bold">{p.id}</span>
+                      <span className="fw-bold">LR-{String(p.id).padStart(4, '0')}</span>
                       <span className="badge bg-warning text-dark"><Clock size={12} className="me-1"/>Processing</span>
                     </div>
                     <div className="fw-medium">{p.patientName}</div>
@@ -29,10 +39,10 @@ const SampleProcessingTab = ({ processing, handleFinalizeReport }) => {
             <div className="border rounded p-4 bg-light h-100">
               <h5 className="mb-4">Input Test Results</h5>
               {processing.length > 0 ? (
-                <form onSubmit={(e) => { e.preventDefault(); handleFinalizeReport(processing[0].id); }}>
+                <form onSubmit={onSubmit}>
                   <div className="mb-3">
                     <label className="form-label text-muted small">Selected Request</label>
-                    <input type="text" className="form-control bg-white" value={`${processing[0].id} - ${processing[0].patientName}`} disabled />
+                    <input type="text" className="form-control bg-white" value={`LR-${String(processing[0].id).padStart(4, '0')} - ${processing[0].patientName}`} disabled />
                   </div>
                   <div className="mb-3">
                     <label className="form-label text-muted small">Test Type</label>
@@ -40,7 +50,14 @@ const SampleProcessingTab = ({ processing, handleFinalizeReport }) => {
                   </div>
                   <div className="mb-4">
                     <label className="form-label fw-medium">Result Notes / Values</label>
-                    <textarea className="form-control" rows="4" placeholder="Enter findings, numeric values, or observations..."></textarea>
+                    <textarea 
+                      className="form-control" 
+                      rows="4" 
+                      placeholder="Enter findings, numeric values, or observations..."
+                      value={resultText}
+                      onChange={(e) => setResultText(e.target.value)}
+                      required
+                    ></textarea>
                   </div>
                   <button type="submit" className="btn btn-success w-100 d-flex justify-content-center align-items-center">
                     <CheckCircle size={18} className="me-2" /> Finalize Report

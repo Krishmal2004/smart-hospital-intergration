@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Activity, FileText, AlertCircle } from 'lucide-react';
 import PendingRequestsTab from './components/PendingRequestsTab';
 import SampleProcessingTab from './components/SampleProcessingTab';
@@ -7,35 +7,66 @@ import ReportDeliveryTab from './components/ReportDeliveryTab';
 const LabDashboard = () => {
   const [activeTab, setActiveTab] = useState('pending');
 
-  // Mock states for demonstration
-  const [requests, setRequests] = useState([
-    { id: 'LR-1001', patientName: 'John Doe', doctor: 'Dr. Smith', test: 'Complete Blood Count (CBC)', status: 'Pending', date: '2023-10-25' },
-    { id: 'LR-1002', patientName: 'Jane Roe', doctor: 'Dr. Adams', test: 'Lipid Panel', status: 'Pending', date: '2023-10-25' }
-  ]);
+  const [requests, setRequests] = useState([]);
+  const [processing, setProcessing] = useState([]);
+  const [reports, setReports] = useState([]);
 
-  const [processing, setProcessing] = useState([
-    { id: 'LR-0998', patientName: 'Alice Green', test: 'Urinalysis', status: 'Processing', sampleCollected: true }
-  ]);
+  // Fetch from Ballerina Backend
+  const fetchLabOrders = async () => {
+    try {
+      const response = await fetch('http://localhost:8080/api/lab_orders');
+      const data = await response.json();
 
-  const [reports, setReports] = useState([
-    { id: 'LR-0950', patientName: 'Bob White', test: 'Blood Glucose', status: 'Available', date: '2023-10-24' }
-  ]);
+      if (Array.isArray(data)) {
+        const formattedOrders = data.map(order => ({
+          id: order.id,
+          displayId: `LR-${String(order.id).padStart(4, '0')}`,
+          patientName: order.patientName,
+          doctor: 'Assigned Doctor', 
+          test: order.tests,
+          status: order.status || 'Pending',
+          date: order.scheduleDate
+        }));
 
-  const handleCollectSample = (id) => {
-    // Move from requests to processing
-    const request = requests.find(r => r.id === id);
-    if (request) {
-      setRequests(requests.filter(r => r.id !== id));
-      setProcessing([...processing, { ...request, status: 'Processing', sampleCollected: true }]);
+        setRequests(formattedOrders.filter(o => o.status === 'Pending'));
+        setProcessing(formattedOrders.filter(o => o.status === 'Processing'));
+        setReports(formattedOrders.filter(o => o.status === 'Available'));
+      } else {
+        console.error("Backend Error:", data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch lab orders", error);
     }
   };
 
-  const handleFinalizeReport = (id) => {
-    // Move from processing to reports
-    const proc = processing.find(p => p.id === id);
-    if (proc) {
-      setProcessing(processing.filter(p => p.id !== id));
-      setReports([...reports, { ...proc, status: 'Available' }]);
+  // Load data when the page opens
+  useEffect(() => {
+    fetchLabOrders();
+  }, []);
+
+  const handleCollectSample = async (id) => {
+    try {
+      const res = await fetch(`http://localhost:8080/api/lab_orders/${id}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'Processing' })
+      });
+      if (res.ok) fetchLabOrders(); // Refresh lists
+    } catch (error) {
+      console.error("Error updating status:", error);
+    }
+  };
+
+  const handleFinalizeReport = async (id, resultsText) => {
+    try {
+      const res = await fetch(`http://localhost:8080/api/lab_orders/${id}/results`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ results: resultsText })
+      });
+      if (res.ok) fetchLabOrders(); // Refresh lists
+    } catch (error) {
+      console.error("Error saving results:", error);
     }
   };
 
@@ -50,7 +81,6 @@ const LabDashboard = () => {
       </div>
 
       <div className="row">
-        {/* Sidebar Navigation */}
         <div className="col-md-3 mb-4">
           <div className="list-group shadow-sm rounded-3 border-0">
             <button 
@@ -80,7 +110,6 @@ const LabDashboard = () => {
           </div>
         </div>
 
-        {/* Main Content Area */}
         <div className="col-md-9">
           {activeTab === 'pending' && <PendingRequestsTab requests={requests} handleCollectSample={handleCollectSample} />}
           {activeTab === 'processing' && <SampleProcessingTab processing={processing} handleFinalizeReport={handleFinalizeReport} />}

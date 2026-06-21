@@ -327,4 +327,44 @@ service /api on new http:Listener(8080) {
 
         return { "message": "Patient created successfully in Asgardeo" };
     }
+
+    //Lab Dashboard endpoint
+    isolated resource function get lab_orders() returns Models:LabOrderResponse[]|http:InternalServerError {
+        Models:LabOrderResponse[]|error result = controllers:getAllLabOrders();
+        if result is error {
+            return <http:InternalServerError> {
+                body: {
+                    "error": "Failed to fetch lab orders",
+                    "details": result.message()
+                }
+            };
+        }
+        return result;
+    }
+
+    isolated resource function patch lab_orders/[int id]/status(Models:UpdateStatusPayload payload) returns json|http:InternalServerError {
+        json|error result = controllers:updateLabStatus(id, payload.status);
+        if result is error {
+            return <http:InternalServerError> {
+                body: {
+                    "error": "Failed to update lab order status",
+                    "details": result.message()
+                }
+            };
+        }
+        return result;
+    }
+
+    isolated resource function post lab_orders/[int id]/results(Models:SaveResultsPayload payload) returns json|http:InternalServerError {
+        json|error result = controllers:saveLabResults(id,payload.results);
+        if result is error {
+            return <http:InternalServerError> {
+                "body": {
+                    "error": "Failed to save lab results",
+                    "details": result.message()
+                }
+            };
+        }
+        return result;
+    }
 }
