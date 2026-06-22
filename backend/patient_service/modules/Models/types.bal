@@ -15,6 +15,16 @@ public type PrescriptionDetails record {|
     string notes?;
 |};
 
+public type DoctorAppointment record {|
+    int id;
+    string time;
+    string patient;     
+    string patientId; 
+    string 'type;
+    string status;
+    string history; 
+|};
+
 public type PrescriptionPayload record {|
     PatientRequest patient;        
     PrescriptionDetails prescription;

@@ -2,13 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { Search, User, MapPin, Calendar, Pill, Save, ArrowLeft, FileText } from 'lucide-react';
 import { useAuthContext } from '@asgardeo/auth-react';
 
-const WritePrescription = ({ onBack }) => {
+const WritePrescription = ({ onBack, preselectedPatient = null }) => {
   const { getAccessToken } = useAuthContext();
   
   const [patientDB, setPatientDB] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState([]);
-  const [selectedPatient, setSelectedPatient] = useState(null);
+  const [selectedPatient, setSelectedPatient] = useState(preselectedPatient);
   const [isLoading, setIsLoading] = useState(true); 
   
   const [prescriptionData, setPrescriptionData] = useState({
