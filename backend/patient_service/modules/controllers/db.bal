@@ -25,6 +25,8 @@ public isolated function savePrescriptionToDB(Models:PrescriptionPayload payload
      VALUES (${payload.patient.id}, ${payload.patient.name}, CAST(${payload.prescription.date} AS DATE), ${payload.prescription.diagnosis}, ${payload.prescription.medication}, ${payload.prescription.instructions}, ${notes})`
     );
 
+    _ = check dbClient->execute(`UPDATE queues SET status = 'Completed' WHERE patient_id = ${payload.patient.id}`);
+
     return {
         "message": "Prescription saved successfully",
         "id": result.lastInsertId

@@ -367,4 +367,20 @@ service /api on new http:Listener(8080) {
         }
         return result;
     }
+
+    isolated resource function get appointments/today/[string doctorId]() returns Models:DoctorAppointment[]|http:InternalServerError {
+        Models:DoctorAppointment[]|error result = controllers:getTodayAppointments(doctorId);
+        if result is error {
+            return <http:InternalServerError> { body: { "error": "Failed to fetch today's appointments", "details": result.message() } };
+        }
+        return result;
+    }
+
+    isolated resource function get appointments/history/[string doctorId]() returns Models:DoctorAppointment[]|http:InternalServerError {
+        Models:DoctorAppointment[]|error result = controllers:getPatientHistory(doctorId);
+        if result is error {
+            return <http:InternalServerError> { body: { "error": "Failed to fetch patient history", "details": result.message() } };
+        }
+        return result;
+    }
 }
