@@ -383,4 +383,30 @@ service /api on new http:Listener(8080) {
         }
         return result;
     }
+
+    isolated resource function get dispensary/prescriptions() returns Models:DispensaryResponse[]|http:InternalServerError {
+        Models:DispensaryResponse[]|error result = controllers:getAllPrescriptions();
+        if result is error {
+            return <http:InternalServerError> {
+                body: {
+                    "error": "Failed to fetch prescriptions",
+                    "details": result.message()
+                }
+            };
+        }
+        return result;
+    }
+
+    isolated resource function patch dispensary/prescriptions/[int id]/fulfill() returns json|http:InternalServerError {
+        json|error result = controllers:fulfillPrescription(id);
+        if result is error {
+            return <http:InternalServerError> {
+                body: {
+                    "error": "Failed to fulfill prescription",
+                    "details": result.message()
+                }
+            };
+        }
+        return result;
+    }
 }
