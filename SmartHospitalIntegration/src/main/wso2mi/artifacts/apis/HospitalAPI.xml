@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<api context="/api" name="HospitalAPI" xmlns="http://ws.apache.org/ns/synapse">
+    <resource methods="OPTIONS GET POST PATCH PUT DELETE" url-mapping="/*">
+        <inSequence>
+            <filter regex="OPTIONS" source="$axis2:REST_METHOD">
+                <then>
+                    <property name="Access-Control-Allow-Origin" scope="transport" type="STRING" value="http://localhost:5173"/>
+                    <property name="Access-Control-Allow-Methods" scope="transport" type="STRING" value="GET, POST, PATCH, PUT, DELETE, OPTIONS"/>
+                    <property name="Access-Control-Allow-Headers" scope="transport" type="STRING" value="Authorization, Content-Type"/>
+                    <property name="Access-Control-Allow-Credentials" scope="transport" type="STRING" value="true"/>
+                    <property name="HTTP_SC" scope="axis2" type="STRING" value="200"/>
+                    <respond/>
+                </then>
+                <else>
+                    <send>
+                        <endpoint>
+                            <http uri-template="http://localhost:8080/api"/>
+                        </endpoint>
+                    </send>
+                </else>
+            </filter>
+        </inSequence>
+        <outSequence>
+            <property name="Access-Control-Allow-Origin" scope="transport" type="STRING" value="http://localhost:5173"/>
+            <property name="Access-Control-Allow-Credentials" scope="transport" type="STRING" value="true"/>
+            <send/>
+        </outSequence>
+        <faultSequence>
+            <payloadFactory media-type="json">
+                <format>{"error": "WSO2 MI Gateway Error", "details": "Could not reach Ballerina backend"}</format>
+                <args/>
+            </payloadFactory>
+            <property name="HTTP_SC" scope="axis2" type="STRING" value="502"/>
+            <respond/>
+        </faultSequence>
+    </resource>
+</api>

@@ -1,25 +1,45 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Pill, Clock, CheckCircle2, Search, FileText,
-  Home
-} from 'lucide-react';
+import { Pill, Clock, CheckCircle2, Search, FileText, Home } from 'lucide-react';
 import DispensaryModal from './components/DispensaryModal';
-import { mockPendingPrescriptions, mockFulfilledPrescriptions } from './components/mockData';
 
 const DispensaryDashboard = () => {
-  const [activeTab, setActiveTab] = useState('pending'); // 'pending' | 'fulfilled'
+  const [activeTab, setActiveTab] = useState('pending');
   const [currentView, setCurrentView] = useState('dashboard');
   
-  const [pendingQueue, setPendingQueue] = useState(mockPendingPrescriptions);
-  const [fulfilledQueue, setFulfilledQueue] = useState(mockFulfilledPrescriptions);
+  // Replaced Mock Data with live state arrays
+  const [pendingQueue, setPendingQueue] = useState([]);
+  const [fulfilledQueue, setFulfilledQueue] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   
   const [selectedPrescription, setSelectedPrescription] = useState(null);
   const [headerDate, setHeaderDate] = useState('');
 
+  // Fetch live data from Ballerina
+  const fetchPrescriptions = async () => {
+    try {
+      const response = await fetch('http://localhost:8080/api/dispensary/prescriptions');
+      if (response.ok) {
+        const data = await response.json();
+        
+        // Map the data so the modal uses the nice "RX-100" string as its display ID
+        const formattedData = data.map(rx => ({
+          ...rx,
+          rawId: rx.id,       // Keep the pure integer for the database update
+          id: rx.displayId    // Use "RX-123" for the UI
+        }));
+
+        setPendingQueue(formattedData.filter(rx => rx.status === 'pending'));
+        setFulfilledQueue(formattedData.filter(rx => rx.status === 'fulfilled'));
+      }
+    } catch (error) {
+      console.error("Failed to fetch prescriptions", error);
+    }
+  };
+
   useEffect(() => {
     const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
     setHeaderDate(new Date().toLocaleDateString(undefined, options));
+    fetchPrescriptions(); // Load data on mount
   }, []);
 
   const handleNavigation = (view, tab = null) => {
@@ -27,24 +47,26 @@ const DispensaryDashboard = () => {
     if (tab) setActiveTab(tab);
   };
 
-  const handleFulfillPrescription = (id) => {
-    const rxToMove = pendingQueue.find(rx => rx.id === id);
-    if (rxToMove) {
-      setPendingQueue(prev => prev.filter(rx => rx.id !== id));
-      setFulfilledQueue(prev => [{
-        ...rxToMove,
-        status: 'fulfilled',
-        time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
-        dispensedBy: 'Pharmacist (You)'
-      }, ...prev]);
+  // Call the Ballerina PATCH endpoint to close the prescription
+  const handleFulfillPrescription = async (displayId) => {
+    const rxToMove = pendingQueue.find(rx => rx.id === displayId);
+    if (!rxToMove) return;
+
+    try {
+      const res = await fetch(`http://localhost:8080/api/dispensary/prescriptions/${rxToMove.rawId}/fulfill`, {
+        method: 'PATCH'
+      });
+      
+      if (res.ok) {
+        fetchPrescriptions(); // Refresh the queues automatically!
+      }
+    } catch (err) {
+      console.error("Error fulfilling prescription:", err);
     }
   };
 
   const SidebarItem = ({ id, icon: Icon, label, requiredTab = null }) => {
-    const isActive = requiredTab 
-      ? (currentView === 'dashboard' && activeTab === requiredTab)
-      : (currentView === id);
-
+    const isActive = requiredTab ? (currentView === 'dashboard' && activeTab === requiredTab) : (currentView === id);
     return (
       <button
         onClick={() => handleNavigation('dashboard', requiredTab || 'pending')}
@@ -69,29 +91,23 @@ const DispensaryDashboard = () => {
   return (
     <div className="d-flex flex-column flex-md-row min-vh-100" style={{ backgroundColor: '#f8f9fa' }}>
       
-      {/* 1. Sidebar Navigation */}
       <div className="bg-white border-end shadow-sm flex-shrink-0 p-4" style={{ width: '280px' }}>
         <div className="mb-5 px-2">
           <h4 className="fw-bold mb-0 d-flex align-items-center gap-2" style={{ color: 'var(--primary-orange, #f97316)' }}>
             <Pill size={28} /> RxDispensary
           </h4>
         </div>
-
         <nav className="d-flex flex-column gap-1">
           <p className="text-muted small fw-bold text-uppercase px-4 mb-2 mt-2">Main Menu</p>
           <SidebarItem id="dashboard" icon={Home} label="Dashboard Overview" requiredTab="pending" />
-          
           <p className="text-muted small fw-bold text-uppercase px-4 mb-2 mt-4">Queue Management</p>
           <SidebarItem id="pending" icon={Clock} label="Pending queue" requiredTab="pending" />
           <SidebarItem id="fulfilled" icon={CheckCircle2} label="Fulfilled" requiredTab="fulfilled" />
         </nav>
       </div>
 
-      {/* 2. Main Content Area */}
       <div className="flex-grow-1 p-4 p-md-5 overflow-auto">
         <div className="fade-in">
-          
-          {/* Header */}
           <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-end mb-5 gap-4">
             <div>
               <h1 className="display-6 fw-bold mb-2 text-dark">Dispensary Dashboard</h1>
@@ -110,7 +126,6 @@ const DispensaryDashboard = () => {
             </div>
           </div>
 
-          {/* Queue Section */}
           <div className="theme-card h-100 p-4 border border-light bg-white shadow-sm rounded-4">
             <div className="d-flex flex-column flex-md-row justify-content-between align-items-center mb-4 gap-3">
               <h4 className="mb-0 fw-bold text-dark d-flex align-items-center gap-2">
@@ -172,11 +187,9 @@ const DispensaryDashboard = () => {
               </div>
             )}
           </div>
-
         </div>
       </div>
 
-      {/* Dispensary Modal */}
       <DispensaryModal 
         isOpen={!!selectedPrescription} 
         onClose={() => setSelectedPrescription(null)} 

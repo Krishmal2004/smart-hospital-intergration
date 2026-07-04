@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<api context="/hospital" name="HospitalPatientAPI" xmlns="http://ws.apache.org/ns/synapse">
+    <resource methods="GET" uri-template="/patients/{id}">
+        <inSequence>
+            <!-- Read path param -->
+            <property expression="get-property('uri.var.id')" name="patientId" scope="default" type="STRING"/>
+
+            <!-- Call Patient Service -->
+            <call>
+                <endpoint>
+                    <http method="get" uri-template="http://patient-service:3001/patients/{uri.var.id}"/>
+                </endpoint>
+            </call>
+            <property expression="json-eval($)" name="patientPayload" scope="default" type="STRING"/>
+
+            <!-- Call Appointment Service -->
+            <call>
+                <endpoint>
+                    <http method="get" uri-template="http://appointment-service:3002/appointments/patient/{uri.var.id}"/>
+                </endpoint>
+            </call>
+            <property expression="json-eval($)" name="appointmentPayload" scope="default" type="STRING"/>
+
+            <!-- Build unified JSON response -->
+            <payloadFactory media-type="json">
+                <format>
+                    {
+                      "patientId":"$1",
+                      "patient":$2,
+                      "appointments":$3
+                    }
+                </format>
+                <args>
+                    <arg evaluator="xml" expression="get-property('patientId')"/>
+                    <arg evaluator="xml" expression="get-property('patientPayload')"/>
+                    <arg evaluator="xml" expression="get-property('appointmentPayload')"/>
+                </args>
+            </payloadFactory>
+
+            <respond/>
+        </inSequence>
+
+        <faultSequence>
+            <payloadFactory media-type="json">
+                <format>
+                    {
+                      "errorCode":"HSP-500",
+                      "message":"Internal integration error"
+                    }
+                </format>
+                <args/>
+            </payloadFactory>
+            <property name="HTTP_SC" scope="axis2" type="STRING" value="500"/>
+            <respond/>
+        </faultSequence>
+    </resource>
+</api>
